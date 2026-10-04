@@ -117,7 +117,58 @@ table.admin td .acts{white-space:nowrap}
 .statcard .val{font-size:30px;font-weight:800;letter-spacing:-.5px}
 footer.site{border-top:1px solid var(--line);background:var(--card);margin-top:20px}
 footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:13.5px}
-@media(max-width:640px){.frow2{grid-template-columns:1fr}.hero{padding:36px 24px}.hero h1{font-size:25px}.nav{flex-wrap:wrap}.stats{gap:16px}}
+/* ---------- responsive: mobile fits mobile, desktop fits desktop ---------- */
+html,body{overflow-x:hidden;overflow-x:clip}
+img{max-width:100%;height:auto}
+@media(max-width:760px){
+  main{padding:16px 12px 60px}
+  .nav{padding:10px 12px;gap:8px}
+  .logo{font-size:18px;flex:0 0 auto}
+  .logo small{font-size:9px;letter-spacing:2px}
+  .nav-links{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;gap:2px;padding:2px 0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .nav-links::-webkit-scrollbar{display:none}
+  .nav-links button{padding:8px 12px;font-size:13.5px;white-space:nowrap;flex:0 0 auto}
+  .live-dot,#userBox{flex:0 0 auto}
+  .hero{padding:30px 20px;margin-bottom:20px;border-radius:18px}
+  .hero h1{font-size:23px}
+  .hero p{font-size:14px;margin-bottom:16px}
+  .searchbar{flex-direction:column}
+  .searchbar button{padding:13px 20px}
+  .stats{flex-wrap:wrap;gap:12px 20px;margin-top:18px}
+  .stats div b{font-size:19px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .card{padding:13px}
+  .card h3{font-size:14px}
+  .card .meta{font-size:12px}
+  .price{font-size:15px}
+  .filters{top:58px;padding:13px;margin-bottom:14px}
+  .detail{padding:20px 16px;border-radius:16px}
+  .detail h1{font-size:20px}
+  .detail .desc{padding:14px;font-size:14px}
+  form.fcard{padding:22px 16px;border-radius:16px}
+  .frow2{grid-template-columns:1fr}
+  .section-title{font-size:19px}
+  .section-head{margin:22px 0 12px}
+  table.admin{font-size:12.5px}
+  table.admin th,table.admin td{padding:10px 8px}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{padding:9px 14px;font-size:13px;white-space:nowrap;flex:0 0 auto}
+  .sp-brand{white-space:normal;letter-spacing:3px;line-height:1.3}
+  .sp-brand2{white-space:normal;letter-spacing:2px;line-height:1.3}
+  .sp-inner{padding:14px}
+  .sp-feats{max-width:100%}
+  #toasts{left:12px;right:12px;bottom:12px}
+  .toast{max-width:none}
+  .statcard{padding:16px}
+  .statcard .val{font-size:23px}
+  .btn{padding:12px 20px}
+  footer.site .in{padding:22px 14px;font-size:12.5px}
+}
+@media(max-width:380px){
+  .grid{grid-template-columns:1fr}
+  .hero h1{font-size:20px}
+}
 /* ---- splash intro ---- */
 #splash{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer;
   background:radial-gradient(1100px 550px at 50% 18%,#3730a3 0%,#191736 55%,#0e0d1f 100%);transition:opacity .6s}
@@ -226,7 +277,7 @@ function updateUserBox(){
 async function refreshWallet(){
   const u = currentUser(); if(!u) return;
   try{
-    const {data} = await db.from("users").select("wallet,total_earnings,plan,note_limit,plan_expires").eq("uid", u.uid).limit(1);
+    const {data} = await db.from("users").select("wallet,total_earnings,plan,note_limit,plan_expires,withdraw_pass_hash").eq("uid", u.uid).limit(1);
     if(data && data.length){
       const r = data[0];
       if(r.plan && r.plan !== "free" && r.plan_expires && Number(r.plan_expires) < Date.now()){
@@ -236,6 +287,7 @@ async function refreshWallet(){
       }
       u.wallet = r.wallet; u.total_earnings = r.total_earnings;
       u.plan = r.plan || "free"; u.note_limit = r.note_limit || 25; u.plan_expires = r.plan_expires || 0;
+      u.withdraw_pass_hash = r.withdraw_pass_hash || null;
       localStorage.setItem("tum_user", JSON.stringify(u));
       const wb = document.getElementById("walletBtn");
       if(wb) wb.textContent = "Wallet · Rs " + Number(u.wallet||0).toLocaleString();
@@ -788,7 +840,9 @@ VIEWS.wallet = async function(){
   app.innerHTML = '<div class="loading">Loading wallet…</div>';
   await refreshWallet();
   const me = currentUser();
+  if(me.is_admin) return adminWalletView(me);
   const {data: wds} = await db.from("withdrawals").select("*").eq("seller_id", me.uid).order("timestamp",{ascending:false}).limit(20);
+  const hasWp = !!me.withdraw_pass_hash;
   app.innerHTML =
     '<div class="section-title" style="margin-top:4px">My wallet</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:24px">' +
@@ -796,29 +850,70 @@ VIEWS.wallet = async function(){
       '<div class="statcard"><div class="lbl">Total earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
     '<div class="notice">When your note sells, <b>70% goes to your wallet</b> and 30% is the platform commission.</div>' +
-    '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
-    '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+'. Money is sent to your Easypaisa number after admin approval.</div><div id="w_msg"></div>' +
-    '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
-    '<div class="field"><label>Your Easypaisa number *</label><input id="w_ep" required placeholder="e.g. 0300-1234567" value="'+esc(me.easypaisa_number||"")+'"></div></div>' +
-    '<button class="btn" style="width:100%">Request withdrawal</button></form>' +
+    (hasWp ?
+      '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
+      '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+'. Money is sent to your Easypaisa number after admin approval. <b>Withdrawal password zaroori hye.</b></div><div id="w_msg"></div>' +
+      '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
+      '<div class="field"><label>Your Easypaisa number *</label><input id="w_ep" required placeholder="e.g. 0300-1234567" value="'+esc(me.easypaisa_number||"")+'"></div></div>' +
+      '<div class="field"><label>Withdrawal password *</label><input id="w_pass" type="password" required placeholder="••••••" autocomplete="current-password"></div>' +
+      '<button class="btn" style="width:100%">Request withdrawal</button></form>'
+    :
+      '<form class="fcard" onsubmit="setWithdrawPassword(event)" style="margin-bottom:24px"><h2>🔐 Set withdrawal password</h2>' +
+      '<div class="sub">Safety ke liye pehle apna <b>withdrawal password</b> set karein. Iske baad <b>har withdraw se pehle</b> yehi password manga jayega.</div><div id="wp_msg"></div>' +
+      '<div class="field"><label>New withdrawal password (kam az kam 6 characters) *</label><input id="wp_new" type="password" required placeholder="••••••" autocomplete="new-password"></div>' +
+      '<button class="btn" style="width:100%">Set password</button></form>'
+    ) +
     '<div class="section-title" style="font-size:18px">Withdrawal history</div>' +
     ((wds && wds.length) ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Amount</th><th>Easypaisa</th><th>Date</th><th>Status</th></tr>' +
       wds.map(function(w){ return '<tr><td><b>Rs '+Number(w.amount||0).toLocaleString()+'</b></td><td>'+esc(w.easypaisa_number||"")+'</td><td>'+fmtDate(w.timestamp)+'</td><td><span class="badge '+(w.status==="pending"?"pending":w.status==="rejected"?"rejected":"")+'">'+esc(w.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
       : '<div class="empty">No withdrawals yet.</div>');
 };
+function adminWalletView(me){
+  app.innerHTML =
+    '<div class="section-title" style="margin-top:4px">Admin earnings</div>' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:24px">' +
+      '<div class="statcard"><div class="lbl">Commission earned (30%)</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
+      '<div class="statcard"><div class="lbl">Total commission earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
+    '</div>' +
+    '<div class="notice">Ye <b>sirf har verified order par milne wala 30% commission</b> hye. Admin ke liye withdrawal ka option nahi hye.</div>';
+}
+async function setWithdrawPassword(ev){
+  ev.preventDefault();
+  const me = currentUser(); if(!me) return;
+  const v = document.getElementById("wp_new").value;
+  const m = document.getElementById("wp_msg");
+  if(!v || v.length < 6){ m.innerHTML = '<div class="err">Password kam az kam 6 characters ka ho</div>'; return; }
+  try{
+    const h = await sha256hex("tum-withdraw::" + v);
+    const {error} = await db.from("users").update({withdraw_pass_hash: h}).eq("uid", me.uid);
+    if(error) throw error;
+    me.withdraw_pass_hash = h;
+    localStorage.setItem("tum_user", JSON.stringify(me));
+    toast("✅ Withdrawal password set ho gaya");
+    VIEWS.wallet();
+  }catch(e){ m.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
 async function submitWithdraw(ev){
   ev.preventDefault();
   const me = currentUser(); if(!me) return;
   const msg = document.getElementById("w_msg");
   const amount = Math.floor(Number(document.getElementById("w_amount").value));
   const ep = document.getElementById("w_ep").value.trim();
+  const pw = document.getElementById("w_pass").value;
   if(!amount || amount < MIN_WITHDRAWAL){ msg.innerHTML = '<div class="notice warn">Minimum withdrawal is Rs '+MIN_WITHDRAWAL+'.</div>'; return; }
   if(!ep){ msg.innerHTML = '<div class="notice warn">Please enter your Easypaisa number.</div>'; return; }
-  msg.innerHTML = "Processing…";
+  if(!pw){ msg.innerHTML = '<div class="notice warn">Withdrawal password dalein.</div>'; return; }
+  msg.innerHTML = "Verifying…";
   try{
-    const {data} = await db.from("users").select("wallet").eq("uid", me.uid).limit(1);
-    const bal = Number(data[0].wallet)||0;
+    const {data: urow, error: ue} = await db.from("users").select("wallet,withdraw_pass_hash").eq("uid", me.uid).limit(1);
+    if(ue) throw ue;
+    if(!urow || !urow.length) throw new Error("Account nahi mila");
+    const bal = Number(urow[0].wallet)||0;
+    const hh = urow[0].withdraw_pass_hash;
+    if(!hh){ msg.innerHTML = '<div class="err">Withdrawal password set nahi hye.</div>'; await refreshWallet(); VIEWS.wallet(); return; }
+    if((await sha256hex("tum-withdraw::" + pw)) !== hh){ msg.innerHTML = '<div class="err">❌ Ghalat withdrawal password.</div>'; return; }
     if(amount > bal){ msg.innerHTML = '<div class="err">Insufficient balance. Available: Rs '+bal.toLocaleString()+'</div>'; return; }
+    msg.innerHTML = "Processing…";
     const {error: e1} = await db.from("users").update({wallet: bal - amount, easypaisa_number: ep}).eq("uid", me.uid);
     if(e1) throw e1;
     const {error: e2} = await db.from("withdrawals").insert({seller_id: me.uid, seller_name: me.name, amount: amount, easypaisa_number: ep, status: "pending", timestamp: Date.now()});
