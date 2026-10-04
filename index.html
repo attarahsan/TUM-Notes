@@ -282,6 +282,41 @@ function cleanAuthParams(){
     history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash);
   }catch(e){}
 }
+async function sha256hex(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2, "0"); }).join("");
+}
+function promptAdminPassword(urow){
+  return new Promise(function(resolve){
+    const ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;z-index:2000;background:rgba(10,10,25,.72);display:flex;align-items:center;justify-content:center;padding:20px";
+    ov.innerHTML = '<div class="fcard" style="max-width:380px;width:100%;margin:0"><h2>🔐 Admin verification</h2><div class="sub">Ye <b>admin account</b> hye. Login mukammal karne ke liye admin password dalein.</div><div id="ap_msg"></div><div class="field"><label>Admin password</label><input id="ap_pass" type="password" placeholder="••••••••" autocomplete="current-password"></div><button class="btn" id="ap_ok" style="width:100%">Verify & login</button><button class="btn ghost" id="ap_cancel" style="width:100%;margin-top:8px">Cancel</button></div>';
+    document.body.appendChild(ov);
+    const done = function(ok){ try{ ov.remove(); }catch(e){} resolve(ok); };
+    document.getElementById("ap_cancel").onclick = function(){ done(false); };
+    const okBtn = document.getElementById("ap_ok");
+    okBtn.onclick = async function(){
+      const v = document.getElementById("ap_pass").value;
+      const m = document.getElementById("ap_msg");
+      if(!v){ m.innerHTML = '<div class="err">Password dalein</div>'; return; }
+      okBtn.disabled = true; okBtn.textContent = "Checking…";
+      try{
+        const good = await verifyAdminPassword(v, urow);
+        if(good){ done(true); }
+        else{ m.innerHTML = '<div class="err">❌ Ghalat password — dobara try karein</div>'; okBtn.disabled = false; okBtn.textContent = "Verify & login"; }
+      }catch(e){ m.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; okBtn.disabled = false; okBtn.textContent = "Verify & login"; }
+    };
+    document.getElementById("ap_pass").onkeydown = function(e){ if(e.key === "Enter") okBtn.click(); };
+    setTimeout(function(){ const i = document.getElementById("ap_pass"); if(i) i.focus(); }, 120);
+  });
+}
+async function verifyAdminPassword(plain, urow){
+  const {data, error} = await db.from("users").select("admin_pass_hash").eq("uid", urow.uid).limit(1);
+  if(error) throw error;
+  const h = data && data[0] && data[0].admin_pass_hash;
+  if(!h) throw new Error("Admin password abhi set nahi hua");
+  return (await sha256hex("tum-admin::" + plain)) === h;
+}
 async function handleGoogleSession(){
   if(_gsync) return;
   _gsync = true;
@@ -329,6 +364,19 @@ async function handleGoogleSession(){
       if(error) throw error;
       urow = ins[0];
       setTimeout(function(){ toast("🎉 Account created — Rs 30 welcome bonus added!"); }, 900);
+    }
+    if(urow.is_admin){
+      const alreadyAdmin = currentUser() && currentUser().is_admin && currentUser().email === email;
+      if(code || !alreadyAdmin){
+        const ok = await promptAdminPassword(urow);
+        if(!ok){
+          try{ await db.auth.signOut(); }catch(e){}
+          localStorage.removeItem("tum_user");
+          updateUserBox();
+          toast("❌ Ghalat password — admin login nahi hua");
+          return;
+        }
+      }
     }
     setSession({uid: urow.uid, name: urow.name, email: urow.email, is_admin: urow.is_admin});
     await refreshWallet();
@@ -846,7 +894,7 @@ VIEWS.admin = function(){
 };
 function adminTabs(active){
   const t = function(k, label){ return '<button class="'+(active===k?"active":"")+'" onclick="adminDash(currentUser(),\''+k+'\')">'+label+'</button>'; };
-  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("subs","💎 Plans") + '</div>';
+  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("subs","💎 Plans") + t("security","🔐 Security") + '</div>';
 }
 function adminHead(s, note){
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
@@ -859,6 +907,7 @@ async function adminDash(s, tab){
   if(tab === "orders") return adminOrdersView(s);
   if(tab === "withdrawals") return adminWithdrawalsView(s);
   if(tab === "subs") return adminSubsView(s);
+  if(tab === "security") return adminSecurityView(s);
   try{
     let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
     if(tab === "pending") q = q.eq("status","pending");
@@ -899,6 +948,34 @@ async function adminSetStatus(note_id, status, tab){
 async function adminDismissReport(note_id, tab){
   await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
   adminDash(currentUser(), tab);
+}
+
+/* ---- admin: security (admin login password gate) ---- */
+async function adminSecurityView(s){
+  let hasPass = false;
+  try{
+    const {data} = await db.from("users").select("admin_pass_hash").eq("uid", s.uid).limit(1);
+    hasPass = !!(data && data[0] && data[0].admin_pass_hash);
+  }catch(e){}
+  app.innerHTML = adminHead(s, "Jab bhi admin Gmail se login hoga, pehle ye password manga jayega.") + adminTabs("security") +
+    '<div class="fcard" style="max-width:520px"><h2>🔐 Admin login password</h2>' +
+    '<div class="sub">Status: ' + (hasPass ? '<b style="color:var(--green)">SET ✅</b> — admin login par password required hye' : '<b style="color:var(--red)">NOT SET ❌</b> — foran set karein') + '</div>' +
+    '<div id="pw_msg"></div>' +
+    '<div class="field"><label>New admin password (kam az kam 8 characters)</label><input id="pw_new" type="password" placeholder="••••••••" autocomplete="new-password"></div>' +
+    '<button class="btn" style="width:100%" onclick="adminChangePassword()">Save new password</button></div>';
+}
+async function adminChangePassword(){
+  const v = document.getElementById("pw_new").value;
+  const m = document.getElementById("pw_msg");
+  if(!v || v.length < 8){ m.innerHTML = '<div class="err">Password kam az kam 8 characters ka ho</div>'; return; }
+  const u = currentUser(); if(!u || !u.is_admin){ m.innerHTML = '<div class="err">Admins only</div>'; return; }
+  try{
+    const h = await sha256hex("tum-admin::" + v);
+    const {error} = await db.from("users").update({admin_pass_hash: h}).eq("uid", u.uid);
+    if(error) throw error;
+    m.innerHTML = '<div class="notice ok">✅ Password save ho gaya — agli admin login se yehi lagega</div>';
+    document.getElementById("pw_new").value = "";
+  }catch(e){ m.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
 }
 
 /* ---- admin: payment orders (30% commission / 70% seller) ---- */
