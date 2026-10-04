@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://subtle-quokka-c95094.netlify.app/sitemap.xml
