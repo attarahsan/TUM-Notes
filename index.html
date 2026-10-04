@@ -670,9 +670,7 @@ async function submitReview(note_id){
   try{
     const {error} = await db.from("reviews").insert({note_id: note_id, user_id: u.uid, user_name: u.name, stars: stars, comment: comment, timestamp: Date.now()});
     if(error) throw error;
-    const {data: all} = await db.from("reviews").select("stars").eq("note_id", note_id);
-    const avg = all.reduce(function(s,r){ return s+Number(r.stars||0); },0) / all.length;
-    await db.from("notes").update({rating: Math.round(avg*10)/10, review_count: all.length}).eq("note_id", note_id);
+    // note rating/review_count are recalculated server-side by a DB trigger
     msg.innerHTML = '<div class="notice ok">Review submitted — thank you!</div>';
     setTimeout(function(){ VIEWS.detail(note_id); }, 900);
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
@@ -967,7 +965,7 @@ async function submitWithdraw(ev){
   if(!pw){ msg.innerHTML = '<div class="notice warn">Withdrawal password dalein.</div>'; return; }
   msg.innerHTML = "Processing…";
   try{
-    const {data, error} = await db.functions.invoke("request-withdrawal", {body: {amount: amount, easypaisa_number: ep, password: pw}});
+    const {data, error} = await db.functions.invoke("request-withdrawal", {body: {amount: amount, easypaisa_number: ep, withdraw_pass_hash: await sha256hex("tum-withdraw::"+pw)}});
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     await refreshWallet();
@@ -1154,7 +1152,7 @@ async function adminOrdersView(s){
 async function adminOrderSet(order_id, note_id, status){
   if(!confirm("Set this order to '"+status+"'?")) return;
   try{
-    const {data, error} = await db.functions.invoke("approve-order", {body: {order_id: order_id, decision: status}});
+    const {data, error} = await db.functions.invoke("approve-order", {body: {order_id: order_id, action: status === "approved" ? "approve" : "reject"}});
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(status === "approved"){
@@ -1190,7 +1188,7 @@ async function adminWithdrawalsView(s){
 async function adminWithdrawSet(request_id, seller_id, amount, status){
   if(!confirm("Mark this withdrawal as '"+status+"'?")) return;
   try{
-    const {data, error} = await db.functions.invoke("decide-withdrawal", {body: {request_id: request_id, decision: status}});
+    const {data, error} = await db.functions.invoke("decide-withdrawal", {body: {request_id: request_id, action: status === "approved" ? "approve" : "reject"}});
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(status === "rejected"){
@@ -1223,7 +1221,7 @@ async function adminSubsView(s){
 async function adminSubSet(id, seller_id, plan, status){
   if(!confirm("Set this subscription to '"+status+"'?")) return;
   try{
-    const {data, error} = await db.functions.invoke("activate-plan", {body: {id: id, decision: status}});
+    const {data, error} = await db.functions.invoke("activate-plan", {body: {sub_id: id, action: status === "approved" ? "approve" : "reject"}});
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(status === "approved"){
