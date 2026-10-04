@@ -179,6 +179,11 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&
 function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
 function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
 function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p.toLocaleString()+'</span>'; }
+function imageList(n){ try{ const a = JSON.parse(n.image_urls || "[]"); if(Array.isArray(a) && a.length) return a; }catch(e){} return n.image_urls ? [n.image_urls] : []; }
+function galleryHtml(imgs){
+  return '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' +
+    imgs.map(function(u){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy"></a>'; }).join("") + '</div>';
+}
 function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4500); }
 function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
 function go(view, arg){ setNav(view); currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
@@ -278,10 +283,13 @@ async function approvedNotes(limit){
   return data || [];
 }
 function noteCard(n){
+  const isImg = n.note_type === "images";
+  const imgs = imageList(n);
+  const cover = isImg ? (imgs[0] || "") : n.image_urls;
   return '<div class="card" onclick="go(\'detail\','+n.note_id+')">' +
-    (n.image_urls ? '<img src="'+esc(n.image_urls)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:10px;margin-bottom:12px">' : '') +
+    (cover ? '<img src="'+esc(cover)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:10px;margin-bottom:12px">' : '') +
     '<h3>'+esc(n.title || "Untitled note")+'</h3>' +
-    '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester ? ' · Sem '+n.semester : '')+'</div>' +
+    '<div class="meta">'+(isImg ? '🖼️ '+imgs.length+' pics · ' : '')+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester ? ' · Sem '+n.semester : '')+'</div>' +
     '<div>'+starStr(n.rating)+' <span class="rcount">'+(Number(n.rating)||0).toFixed(1)+' ('+(n.review_count||0)+')</span></div>' +
     '<div class="foot">'+priceStr(n.price)+'<span class="sellerline">'+esc(n.seller_name||"")+'</span></div></div>';
 }
@@ -381,10 +389,21 @@ VIEWS.detail = async function(note_id){
     currentNote = n;
     const {data: revs} = await db.from("reviews").select("*").eq("note_id", note_id).order("timestamp",{ascending:false}).limit(50);
     const isFree = Number(n.price) === 0;
+    const isImgNote = n.note_type === "images";
+    const galImgs = imageList(n);
+    let mediaHtml = "";
+    if(isImgNote && galImgs.length){
+      mediaHtml = isFree
+        ? '<div id="noteGallery" style="margin-bottom:18px">' + galleryHtml(galImgs) + '</div>'
+        : '<div id="noteGallery" style="margin-bottom:18px;position:relative"><img src="'+esc(galImgs[0])+'" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;filter:blur(16px)">' +
+          '<div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center"><div style="font-size:46px">🔒</div><div style="color:#fff;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,.6)">'+galImgs.length+' photos — unlock to view</div></div></div>';
+    }else if(n.image_urls){
+      mediaHtml = '<img src="'+esc(n.image_urls)+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;margin-bottom:18px">';
+    }
     app.innerHTML =
       '<button class="back" onclick="go(\'browse\')">← Back to browse</button>' +
       '<div class="detail">' +
-      (n.image_urls ? '<img src="'+esc(n.image_urls)+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;margin-bottom:18px">' : '') +
+      mediaHtml +
       '<h1>'+esc(n.title||"Untitled note")+'</h1>' +
       '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+'</div>' +
       '<div class="topline">'+priceStr(n.price)+starStr(n.rating)+
@@ -472,9 +491,15 @@ async function checkAccess(){
       return;
     }
     if(data[0].status === "approved"){
-      area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
-        (n.file_url ? '<a class="btn" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download your note</a>'
-                    : '<div class="notice warn">File not attached by seller yet.</div>');
+      if(n.note_type === "images"){
+        const gal = document.getElementById("noteGallery");
+        if(gal) gal.innerHTML = galleryHtml(imageList(n));
+        area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>';
+      }else{
+        area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
+          (n.file_url ? '<a class="btn" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download your note</a>'
+                      : '<div class="notice warn">File not attached by seller yet.</div>');
+      }
     }else{
       area.innerHTML = '<div class="notice">Your payment is <b>pending admin approval</b> — please check back soon.</div>';
     }
@@ -490,31 +515,115 @@ async function uploadToStorage(file, folder){
   return db.storage.from("notes").getPublicUrl(path).data.publicUrl;
 }
 VIEWS.sell = async function(){
-  const u0 = requireLogin(); if(!u0) return;
-  app.innerHTML = '<div class="loading">Loading…</div>';
-  await refreshWallet();
-  const u = currentUser();
-  const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
-  const used = count || 0;
-  const limit = u.note_limit || 50;
-  const full = used >= limit;
-  app.innerHTML =
-    '<form class="fcard" onsubmit="submitNote(event)"><h2>Sell your notes</h2>' +
-    '<div class="sub">Reach hundreds of TUM students. Selling as <b>'+esc(u.name)+'</b>.</div>' +
-    '<div class="notice">You have uploaded <b>'+used+'/'+planLimitTxt(limit)+'</b> notes <span style="color:var(--muted)">('+planName(u.plan)+' plan)</span></div>' +
-    (full ? '<div class="notice warn">You have reached your plan limit. <b><a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand)">Upgrade your plan 💎</a></b> to upload more notes.</div>'
-          : '<div class="notice">Your note goes to the <b>admin for approval</b> first — the admin will open and verify your file before publishing it.</div>') +
-    '<div id="sell_msg"></div>' +
-    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers" '+(full?"disabled":"")+ '></div>' +
-    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus" '+(full?"disabled":"")+ '></div>' +
-    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI" '+(full?"disabled":"")+ '></div></div>' +
-    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem" '+(full?"disabled":"")+ '>'+[1,2,3,4,5,6,7,8].map(function(s){ return '<option>'+s+'</option>'; }).join("")+'</select></div>' +
-    '<div class="field"><label>Price (Rs — 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required '+(full?"disabled":"")+ '></div></div>' +
-    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" '+(full?"disabled":"")+ '></textarea></div>' +
-    '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" '+(full?"disabled":"")+ '></div>' +
-    '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*" '+(full?"disabled":"")+ '></div>' +
-    '<button class="btn" type="submit" style="width:100%" '+(full?"disabled":"")+ '>Submit for approval</button></form>';
+  if(!requireLogin()) return;
+  app.innerHTML = '<div class="section-title" style="margin-top:4px">Sell your notes</div>' +
+    '<div class="sub" style="color:var(--muted);margin-bottom:18px">What do you want to sell?</div>' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">' +
+    '<div class="card" onclick="sellPdfForm()"><h3>📄 PDF / Document</h3><div class="meta">Upload a PDF, DOC or PPT file.<br><b>You</b> set the price yourself.</div><div class="foot"><span class="price">Your price</span><span class="sellerline">→</span></div></div>' +
+    '<div class="card" onclick="sellImgForm()"><h3>🖼️ Gallery images</h3><div class="meta">Attach 1–50 photos of handwritten notes.<br>Price <b>auto-set</b>: Rs 2 per pic.</div><div class="foot"><span class="price">Rs 2/pic auto</span><span class="sellerline">→</span></div></div>' +
+    '</div>';
 };
+async function sellPlanLimit(){
+  await refreshWallet();
+  const me = currentUser();
+  const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", me.uid);
+  const limit = me.note_limit || 50;
+  return {used: count || 0, limit: limit, plan: me.plan || "free", full: (count || 0) >= limit};
+}
+function limitNotice(lim){
+  return '<div class="notice">You have uploaded <b>' + lim.used + '/' + planLimitTxt(lim.limit) + '</b> notes <span style="color:var(--muted)">(' + planName(lim.plan) + ' plan)</span></div>' +
+    (lim.full ? '<div class="notice warn">Plan limit reached. <b><a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand)">Upgrade your plan 💎</a></b> to upload more.</div>'
+              : '<div class="notice">Your note goes to the <b>admin for approval</b> first — the admin will open and verify it before publishing.</div>');
+}
+function semOptions(){ return [1,2,3,4,5,6,7,8].map(function(s){ return '<option>' + s + '</option>'; }).join(""); }
+async function sellPdfForm(){
+  if(!requireLogin()) return;
+  app.innerHTML = '<div class="loading">Loading…</div>';
+  const u = currentUser();
+  const lim = await sellPlanLimit();
+  const dis = lim.full ? "disabled" : "";
+  app.innerHTML = '<button class="back" onclick="go(\'sell\')">← Back</button>' +
+    '<form class="fcard" onsubmit="submitNote(event)"><h2>📄 Sell PDF / document</h2>' +
+    '<div class="sub">Selling as <b>' + esc(u.name) + '</b>. You set the price yourself.</div>' +
+    limitNotice(lim) + '<div id="sell_msg"></div>' +
+    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers" ' + dis + '></div>' +
+    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus" ' + dis + '></div>' +
+    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI" ' + dis + '></div></div>' +
+    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem" ' + dis + '>' + semOptions() + '</select></div>' +
+    '<div class="field"><label>Price (Rs — 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required ' + dis + '></div></div>' +
+    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
+    '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" ' + dis + '></div>' +
+    '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*" ' + dis + '></div>' +
+    '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
+}
+async function sellImgForm(){
+  if(!requireLogin()) return;
+  app.innerHTML = '<div class="loading">Loading…</div>';
+  const u = currentUser();
+  const lim = await sellPlanLimit();
+  const dis = lim.full ? "disabled" : "";
+  app.innerHTML = '<button class="back" onclick="go(\'sell\')">← Back</button>' +
+    '<form class="fcard" onsubmit="submitImgNote(event)"><h2>🖼️ Sell gallery notes</h2>' +
+    '<div class="sub">Selling as <b>' + esc(u.name) + '</b>. Attach 1–50 photos — price is set <b>automatically at Rs 2 per pic</b>.</div>' +
+    limitNotice(lim) + '<div id="sell_msg"></div>' +
+    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Physics Ch.4 — Neat handwritten notes" ' + dis + '></div>' +
+    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Physics" ' + dis + '></div>' +
+    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI" ' + dis + '></div></div>' +
+    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem" ' + dis + '>' + semOptions() + '</select></div>' +
+    '<div class="field"><label>Price (auto — Rs 2/pic)</label><input id="s_price" disabled value="Rs 0"></div></div>' +
+    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
+    '<div class="field"><label>Attach note photos (1–50) *</label><input id="s_imgs" type="file" accept="image/*" multiple ' + dis + ' onchange="updImgPrice()"></div>' +
+    '<div id="img_price_box"></div>' +
+    '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
+  updImgPrice();
+}
+function updImgPrice(){
+  const inp = document.getElementById("s_imgs");
+  const box = document.getElementById("img_price_box");
+  if(!inp || !box) return;
+  const n = inp.files.length;
+  const price = n * 2;
+  document.getElementById("s_price").value = "Rs " + price;
+  box.innerHTML = n === 0 ? '<div class="notice">Select between 1 and 50 photos.</div>'
+    : n > 50 ? '<div class="notice warn">Too many! Maximum 50 photos — you selected ' + n + '. Please remove some.</div>'
+    : '<div class="notice ok">📸 ' + n + ' photo(s) × Rs 2 = <b>Rs ' + price + '</b> — price set automatically</div>';
+}
+async function submitImgNote(ev){
+  ev.preventDefault();
+  const u = currentUser(); if(!u) return;
+  const msg = document.getElementById("sell_msg");
+  const files = Array.prototype.slice.call(document.getElementById("s_imgs").files);
+  if(files.length < 1){ msg.innerHTML = '<div class="notice warn">Please attach at least 1 photo.</div>'; return; }
+  if(files.length > 50){ msg.innerHTML = '<div class="notice warn">Maximum 50 photos per note.</div>'; return; }
+  const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
+  const {data: urow} = await db.from("users").select("note_limit").eq("uid", u.uid).limit(1);
+  const limit = (urow && urow[0] && urow[0].note_limit) || 50;
+  if((count || 0) >= limit){ msg.innerHTML = '<div class="err">Plan limit reached (' + planLimitTxt(limit) + ' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
+  const price = files.length * 2;
+  try{
+    const urls = [];
+    for(let i = 0; i < files.length; i++){
+      msg.innerHTML = "Uploading photo " + (i + 1) + "/" + files.length + "…";
+      urls.push(await uploadToStorage(files[i], "noteimgs"));
+    }
+    msg.innerHTML = "Saving…";
+    const {error} = await db.from("notes").insert({
+      note_id: Math.floor(Date.now() / 1000),
+      seller_id: u.uid, seller_name: u.name,
+      title: document.getElementById("s_title").value.trim(),
+      subject: document.getElementById("s_subject").value.trim(),
+      department: document.getElementById("s_dept").value.trim() || "Computing/AI",
+      semester: parseInt(document.getElementById("s_sem").value, 10),
+      price: price, note_type: "images",
+      ai_summary: document.getElementById("s_desc").value.trim(),
+      file_url: "", image_urls: JSON.stringify(urls),
+      status: "pending", created_at: Date.now()
+    });
+    if(error) throw error;
+    msg.innerHTML = '<div class="notice ok">Submitted! ' + files.length + ' photos · <b>Rs ' + price + '</b> (Rs 2/pic auto-priced). The admin will verify then publish.</div>';
+    ev.target.reset(); updImgPrice();
+  }catch(e){ msg.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
+}
 async function submitNote(ev){
   ev.preventDefault();
   const u = currentUser(); if(!u) return;
@@ -540,6 +649,7 @@ async function submitNote(ev){
       department: document.getElementById("s_dept").value.trim() || "Computing/AI",
       semester: parseInt(document.getElementById("s_sem").value,10),
       price: parseInt(document.getElementById("s_price").value,10) || 0,
+      note_type: "pdf",
       ai_summary: document.getElementById("s_desc").value.trim(),
       file_url: fileUrl, image_urls: coverUrl,
       status: "pending", created_at: Date.now()
@@ -682,13 +792,19 @@ async function adminDash(s, tab){
     const {data: notes, error} = await q;
     if(error) throw error;
     const rows = notes.map(function(n){
+      const ims = n.note_type === "images" ? imageList(n) : [];
+      const thumbHtml = ims.length
+        ? '<div style="margin-top:8px">' + ims.slice(0,5).map(function(u){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;margin:0 6px 6px 0;border:1px solid var(--line)" loading="lazy"></a>'; }).join("") + '</div><div style="font-size:12px;color:var(--muted)">🖼️ '+ims.length+' photos · auto-priced Rs '+(Number(n.price)||0)+' (Rs 2/pic) — click any photo to verify</div>'
+        : (n.image_urls ? '<a href="'+esc(n.image_urls)+'" target="_blank" rel="noopener"><img src="'+esc(n.image_urls)+'" style="width:90px;border-radius:8px;margin-top:8px;border:1px solid var(--line)" loading="lazy"></a><br>' : '');
       return '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br>' +
       '<span style="color:var(--muted);font-size:12.5px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+' · '+fmtDate(n.created_at)+'</span><br>' +
-      (n.image_urls ? '<a href="'+esc(n.image_urls)+'" target="_blank" rel="noopener"><img src="'+esc(n.image_urls)+'" style="width:90px;border-radius:8px;margin-top:8px;border:1px solid var(--line)" loading="lazy"></a><br>' : '') +
+      thumbHtml +
       (n.is_reported ? '<span class="badge" style="background:var(--red-soft);color:var(--red)">Reported: '+esc(n.report_reason||"no reason")+'</span> ' : '') +
       '<span class="badge '+(n.status==="pending"?"pending":n.status==="rejected"?"rejected":"")+'">'+esc(n.status||"")+'</span></td>' +
       '<td class="acts">' +
-      (n.file_url ? '<a class="btn small ghost" style="text-decoration:none" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">📄 View file</a> ' : '<span style="font-size:12px;color:var(--red)">no file</span> ') +
+      (n.note_type === "images"
+        ? '<span style="font-size:12px;color:var(--muted)">photos above ☝</span> '
+        : (n.file_url ? '<a class="btn small ghost" style="text-decoration:none" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">📄 View file</a> ' : '<span style="font-size:12px;color:var(--red)">no file</span> ')) +
       (n.status !== "approved" ? '<button class="btn small" onclick="adminSetStatus('+n.note_id+',\'approved\',\''+tab+'\')">Approve</button> ' : '') +
       (n.status !== "rejected" ? '<button class="btn small danger" onclick="adminSetStatus('+n.note_id+',\'rejected\',\''+tab+'\')">Reject</button> ' : '') +
       (n.is_reported ? '<button class="btn small ghost" onclick="adminDismissReport('+n.note_id+',\''+tab+'\')">Dismiss report</button>' : '') +
