@@ -137,8 +137,9 @@ const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* Payment receiving details — buyer pays here, uploads screenshot, admin approves */
-const PAYMENT_METHOD = "JazzCash";
-const PAYMENT_NUMBER = "0300-0000000"; /* TODO: owner — set your real number */
+const PAYMENT_METHOD = "Easypaisa";
+const PAYMENT_NUMBER = "03374667402";
+const PAYMENT_TITLE = "Ahsan Abid";
 
 /* ================= HELPERS ================= */
 const app = document.getElementById("app");
@@ -316,7 +317,7 @@ function showUnlockForm(){
   document.getElementById("unlockArea").innerHTML =
     '<div class="field" style="margin-top:6px"><label>Your name *</label><input id="u_name"></div>' +
     '<div class="field"><label>Your phone or email * <span style="font-weight:400;text-transform:none">(used to identify your payment later)</span></label><input id="u_contact" placeholder="e.g. 0300-1234567"></div>' +
-    '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b><br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
+    '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')<br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
     '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
     '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>';
 }
