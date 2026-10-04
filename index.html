@@ -198,6 +198,16 @@ img{max-width:100%;height:auto}
 .sp-dots i{width:8px;height:8px;border-radius:50%;background:#3b4270;transition:all .3s}
 .sp-dots i.on{background:#fde68a;transform:scale(1.35)}
 .sp-skip{color:#5b6390;margin-top:22px;font-size:12px}
+/* ===== content protection ===== */
+.nocopy,.nocopy *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}
+.wm-wrap{position:relative}
+.wm-overlay{position:absolute;inset:0;pointer-events:none;z-index:6;background-repeat:repeat}
+#veil{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:rgba(8,8,20,.97)}
+#veil.show{display:flex}
+@media print{
+  .detail,#noteGallery,.wm-wrap{display:none!important}
+  body::after{content:"Printing is disabled on TUM Notes Hub";display:block;text-align:center;padding:60px;font-size:18px}
+}
 </style>
 </head>
 <body>
@@ -248,10 +258,61 @@ function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); retu
 function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
 function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p.toLocaleString()+'</span>'; }
 function imageList(n){ try{ const a = JSON.parse(n.image_urls || "[]"); if(Array.isArray(a) && a.length) return a; }catch(e){} return n.image_urls ? [n.image_urls] : []; }
-function galleryHtml(imgs){
+function galleryHtml(imgs, noLink){
   return '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' +
-    imgs.map(function(u){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy"></a>'; }).join("") + '</div>';
+    imgs.map(function(u){
+      const im = '<div class="wm-wrap"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy" draggable="false"></div>';
+      return noLink ? im : '<a href="'+esc(u)+'" target="_blank" rel="noopener">'+im+'</a>';
+    }).join("") + '</div>';
 }
+/* ================= CONTENT PROTECTION ================= */
+function wmLabel(){
+  try{ const u = currentUser(); if(u) return ((u.name||"User")+" · "+(u.email||"")).slice(0,40); }catch(e){}
+  return "TUM Notes Hub";
+}
+function wmTile(){
+  try{
+    const c = document.createElement("canvas"); c.width = 360; c.height = 240;
+    const x = c.getContext("2d");
+    x.translate(180,120); x.rotate(-0.45); x.textAlign = "center";
+    x.font = "700 21px system-ui,-apple-system,sans-serif";
+    x.fillStyle = "rgba(255,255,255,0.30)";
+    x.fillText(wmLabel(), 0, -4);
+    x.font = "700 13px system-ui,-apple-system,sans-serif";
+    x.fillStyle = "rgba(140,150,220,0.35)";
+    x.fillText("TUM Notes Hub", 0, 26);
+    return "url("+c.toDataURL("image/png")+")";
+  }catch(e){ return "none"; }
+}
+function applyWatermarks(){
+  const tile = wmTile();
+  document.querySelectorAll(".wm-wrap").forEach(function(w){
+    if(w.querySelector(".wm-overlay")) return;
+    const o = document.createElement("div");
+    o.className = "wm-overlay";
+    o.style.backgroundImage = tile;
+    w.appendChild(o);
+  });
+}
+["contextmenu","dragstart"].forEach(function(ev){
+  document.addEventListener(ev, function(e){
+    if(e.target && e.target.closest && e.target.closest(".detail")) e.preventDefault();
+  });
+});
+document.addEventListener("copy", function(e){
+  if(e.target && e.target.closest && e.target.closest(".detail")) e.preventDefault();
+});
+(function(){
+  const v = document.createElement("div");
+  v.id = "veil";
+  v.innerHTML = '<div style="text-align:center;padding:24px"><div style="font-size:46px">🔒</div><div style="font-size:19px;font-weight:800;color:#fff;margin-top:8px">Content protected</div><div style="color:#9aa3c7;margin-top:6px;font-size:14px">Wapas aane par dobara dikhega</div></div>';
+  document.body.appendChild(v);
+  document.addEventListener("visibilitychange", function(){ v.classList.toggle("show", !!document.hidden); });
+  window.addEventListener("pagehide", function(){ v.classList.add("show"); });
+  window.addEventListener("pageshow", function(){ v.classList.remove("show"); });
+  window.addEventListener("beforeprint", function(){ v.classList.add("show"); });
+  window.addEventListener("afterprint", function(){ v.classList.remove("show"); });
+})();
 function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4500); }
 function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
 function go(view, arg){ setNav(view); currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
@@ -568,15 +629,15 @@ VIEWS.detail = async function(note_id){
     let mediaHtml = "";
     if(isImgNote && galImgs.length){
       mediaHtml = isFree
-        ? '<div id="noteGallery" style="margin-bottom:18px">' + galleryHtml(galImgs) + '</div>'
+        ? '<div id="noteGallery" style="margin-bottom:18px">' + galleryHtml(galImgs, true) + '</div>'
         : '<div id="noteGallery" style="margin-bottom:18px;position:relative"><img src="'+esc(galImgs[0])+'" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;filter:blur(16px)">' +
           '<div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center"><div style="font-size:46px">🔒</div><div style="color:#fff;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,.6)">'+galImgs.length+' photos — unlock to view</div></div></div>';
     }else if(n.image_urls){
-      mediaHtml = '<img src="'+esc(n.image_urls)+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;margin-bottom:18px">';
+      mediaHtml = '<div class="wm-wrap" style="margin-bottom:18px"><img src="'+esc(n.image_urls)+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;display:block" draggable="false"></div>';
     }
     app.innerHTML =
       '<button class="back" onclick="go(\'browse\')">← Back to browse</button>' +
-      '<div class="detail">' +
+      '<div class="detail nocopy">' +
       mediaHtml +
       '<h1>'+esc(n.title||"Untitled note")+'</h1>' +
       '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+'</div>' +
@@ -596,6 +657,7 @@ VIEWS.detail = async function(note_id){
       '<div class="frow2"><div class="field"><label>Stars</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
       '<div class="field"><label>Comment</label><textarea id="rv_txt" placeholder="What did you think of these notes?"></textarea></div>' +
       '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:12px"></div></div>';
+    applyWatermarks();
   }catch(e){ app.innerHTML = '<div class="err">Could not load note: '+esc(e.message)+'</div>'; }
 };
 async function submitReview(note_id){
@@ -667,7 +729,7 @@ async function checkAccess(){
     if(data[0].status === "approved"){
       if(n.note_type === "images"){
         const gal = document.getElementById("noteGallery");
-        if(gal) gal.innerHTML = galleryHtml(imageList(n));
+        if(gal){ gal.innerHTML = galleryHtml(imageList(n), true); applyWatermarks(); }
         area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>';
       }else{
         area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
