@@ -992,7 +992,7 @@ const PLANS = {
   business: {name:"Business", notes:1000000, price:999, per:"/month",  features:["Unlimited notes","Top placement in browse","30 days validity"]}
 };
 function planName(k){ return (PLANS[k] || PLANS.free).name; }
-function planLimitTxt(n){ return n >= 1000000 ? "Unlimited" : n; }
+function planLimitTxt(n){ return n >= 1000000 ? "Unlimited" : String(n); }
 VIEWS.plans = async function(){
   const u0 = requireLogin(); if(!u0) return;
   app.innerHTML = '<div class="loading">Loading plans…</div>';
