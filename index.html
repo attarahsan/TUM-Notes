@@ -20,7 +20,7 @@ header.site{background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-b
 .nav{max-width:1140px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:13px 20px}
 .logo{font-weight:900;font-size:21px;color:var(--brand);cursor:pointer;letter-spacing:-.4px;white-space:nowrap}
 .logo small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:2.5px}
-.nav-links{display:flex;gap:4px;margin-left:auto;align-items:center}
+.nav-links{display:flex;gap:4px;margin-left:auto;align-items:center;flex-wrap:wrap}
 .nav-links button{background:none;border:none;padding:9px 15px;border-radius:10px;font-size:14.5px;cursor:pointer;color:var(--ink);font-weight:600;font-family:inherit}
 .nav-links button:hover{background:var(--brand-soft)}
 .nav-links button.active{background:var(--brand);color:#fff}
@@ -105,6 +105,9 @@ table.admin td .acts{white-space:nowrap}
 @keyframes slidein{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
 .skel{background:linear-gradient(90deg,#eceef4 25%,#f7f8fc 50%,#eceef4 75%);background-size:200% 100%;animation:sk 1.3s infinite;border-radius:var(--radius);height:190px}
 @keyframes sk{to{background-position:-200% 0}}
+.statcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.statcard .lbl{font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.statcard .val{font-size:30px;font-weight:800;letter-spacing:-.5px}
 footer.site{border-top:1px solid var(--line);background:var(--card);margin-top:20px}
 footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:13.5px}
 @media(max-width:640px){.frow2{grid-template-columns:1fr}.hero{padding:36px 24px}.hero h1{font-size:25px}.nav{flex-wrap:wrap}.stats{gap:16px}}
@@ -119,7 +122,9 @@ footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;ga
       <button data-nav="home" onclick="go('home')">Home</button>
       <button data-nav="browse" onclick="go('browse')">Browse</button>
       <button data-nav="sell" onclick="go('sell')">Sell</button>
-      <button data-nav="admin" onclick="go('admin')">Admin</button>
+      <button data-nav="wallet" id="walletBtn" onclick="go('wallet')" style="display:none">Wallet</button>
+      <button data-nav="admin" id="adminBtn" onclick="go('admin')" style="display:none">Admin</button>
+      <span id="userBox" style="display:flex;gap:8px;align-items:center"></span>
     </div>
   </div>
 </header>
@@ -135,11 +140,12 @@ footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;ga
 const SUPABASE_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-/* Payment receiving details — buyer pays here, uploads screenshot, admin approves */
 const PAYMENT_METHOD = "Easypaisa";
 const PAYMENT_NUMBER = "03374667402";
 const PAYMENT_TITLE = "Ahsan Abid";
+const MAX_NOTES_PER_SELLER = 50;
+const MIN_WITHDRAWAL = 100;
+const ADMIN_COMMISSION = 0.30;
 
 /* ================= HELPERS ================= */
 const app = document.getElementById("app");
@@ -147,10 +153,88 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&
 function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
 function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
 function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p.toLocaleString()+'</span>'; }
-function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4200); }
+function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4500); }
 function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
-function go(view, arg){ setNav(view); currentView = view; currentArg = arg; VIEWS[view](arg); window.scrollTo(0,0); }
+function go(view, arg){ setNav(view); currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
 let currentView = "home", currentArg = null, currentNote = null;
+
+/* ================= AUTH ================= */
+function currentUser(){ try{ return JSON.parse(localStorage.getItem("tum_user") || "null"); }catch(e){ return null; } }
+function setSession(u){ localStorage.setItem("tum_user", JSON.stringify(u)); subscribeWallet(); updateUserBox(); }
+function logout(){ const ch = window._wchan; if(ch){ db.removeChannel(ch); window._wchan = null; } localStorage.removeItem("tum_user"); updateUserBox(); go("home"); }
+function requireLogin(){ const u = currentUser(); if(!u){ toast("Please login or create an account first"); go("login"); return null; } return u; }
+function updateUserBox(){
+  const u = currentUser();
+  const box = document.getElementById("userBox");
+  const wb = document.getElementById("walletBtn");
+  const ab = document.getElementById("adminBtn");
+  if(wb) wb.style.display = u ? "" : "none";
+  if(ab) ab.style.display = (u && u.is_admin) ? "" : "none";
+  if(!box) return;
+  box.innerHTML = u
+    ? '<span style="font-size:13.5px;font-weight:700">👤 '+esc(u.name||"User")+'</span><button class="btn small ghost" onclick="logout()">Logout</button>'
+    : '<button class="btn small" onclick="go(\'login\')">Login / Sign up</button>';
+}
+async function refreshWallet(){
+  const u = currentUser(); if(!u) return;
+  try{
+    const {data} = await db.from("users").select("wallet,total_earnings").eq("uid", u.uid).limit(1);
+    if(data && data.length){
+      u.wallet = data[0].wallet; u.total_earnings = data[0].total_earnings;
+      localStorage.setItem("tum_user", JSON.stringify(u));
+      const wb = document.getElementById("walletBtn");
+      if(wb) wb.textContent = "Wallet · Rs " + Number(u.wallet||0).toLocaleString();
+    }
+  }catch(e){}
+}
+/* ================= AUTH VIEWS ================= */
+const VIEWS = {};
+VIEWS.login = function(){
+  if(currentUser()){ go("home"); return; }
+  app.innerHTML = '<div class="tabs" style="max-width:460px;margin:34px auto 0"><button id="tabLogin" class="active" onclick="authTab(\'login\')">Login</button><button id="tabSignup" onclick="authTab(\'signup\')">Sign up</button></div><div id="authBox"></div>';
+  authTab("login");
+};
+function authTab(which){
+  document.getElementById("tabLogin").classList.toggle("active", which === "login");
+  document.getElementById("tabSignup").classList.toggle("active", which === "signup");
+  document.getElementById("authBox").innerHTML = which === "login"
+    ? '<form class="fcard" onsubmit="doLogin(event)" style="max-width:460px;margin:18px auto"><h2>Welcome back</h2><div class="sub">Your purchases, uploads and wallet are saved to your account.</div><div id="a_msg"></div><div class="field"><label>Email</label><input id="a_email" type="email" required></div><div class="field"><label>Password</label><input id="a_pass" type="password" required></div><button class="btn" style="width:100%">Login</button></form>'
+    : '<form class="fcard" onsubmit="doSignup(event)" style="max-width:460px;margin:18px auto"><h2>Create account</h2><div class="sub">Free forever. You get <b>Rs 30</b> welcome bonus in your wallet.</div><div id="a_msg"></div><div class="field"><label>Name *</label><input id="a_name" required placeholder="e.g. Ali Raza"></div><div class="field"><label>Email *</label><input id="a_email" type="email" required></div><div class="field"><label>Password *</label><input id="a_pass" type="password" required minlength="4"></div><button class="btn" style="width:100%">Create account</button></form>';
+}
+async function doSignup(ev){
+  ev.preventDefault();
+  const msg = document.getElementById("a_msg");
+  const name = document.getElementById("a_name").value.trim();
+  const email = document.getElementById("a_email").value.trim().toLowerCase();
+  const pass = document.getElementById("a_pass").value;
+  if(!name){ msg.innerHTML = '<div class="err">Please enter your name.</div>'; return; }
+  msg.innerHTML = "Creating account…";
+  try{
+    const ex = await db.from("users").select("uid").eq("email", email).limit(1);
+    if(ex.data && ex.data.length){ msg.innerHTML = '<div class="err">This email is already registered — please login.</div>'; return; }
+    const uid = "u" + Date.now().toString(36);
+    const {error} = await db.from("users").insert({uid: uid, name: name, email: email, password: pass, role: "user", is_admin: false, wallet: 30, total_earnings: 0, created_at: Date.now()});
+    if(error) throw error;
+    setSession({uid: uid, name: name, email: email, is_admin: false, wallet: 30, total_earnings: 0});
+    msg.innerHTML = '<div class="notice ok">Account created — welcome, ' + esc(name) + '! Rs 30 bonus added to your wallet.</div>';
+    setTimeout(function(){ go("home"); }, 1000);
+  }catch(e){ msg.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+async function doLogin(ev){
+  ev.preventDefault();
+  const msg = document.getElementById("a_msg");
+  const email = document.getElementById("a_email").value.trim().toLowerCase();
+  const pass = document.getElementById("a_pass").value;
+  msg.innerHTML = "Signing in…";
+  try{
+    const {data, error} = await db.from("users").select("uid,name,email,is_admin,wallet,total_earnings").eq("email", email).eq("password", pass).limit(1);
+    if(error) throw error;
+    if(!data.length){ msg.innerHTML = '<div class="err">Invalid email or password.</div>'; return; }
+    setSession(data[0]);
+    msg.innerHTML = '<div class="notice ok">Welcome back, ' + esc(data[0].name || "") + '!</div>';
+    setTimeout(function(){ go("home"); }, 800);
+  }catch(e){ msg.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
 
 /* ================= FILTER STATE ================= */
 const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"},
@@ -175,15 +259,14 @@ function noteCard(n){
     '<div class="foot">'+priceStr(n.price)+'<span class="sellerline">'+esc(n.seller_name||"")+'</span></div></div>';
 }
 
-/* ================= VIEWS ================= */
-const VIEWS = {};
+/* ================= HOME & BROWSE ================= */
 VIEWS.home = async function(){
   app.innerHTML = '<div class="grid">' + '<div class="skel"></div>'.repeat(4) + '</div>';
   try{
     const notes = await approvedNotes(80);
-    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))].sort();
-    const free = notes.filter(n => Number(n.price) === 0).length;
-    const feat = [...notes].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
+    DEPARTMENTS = [...new Set(notes.map(function(n){ return n.department; }).filter(Boolean))].sort();
+    const free = notes.filter(function(n){ return Number(n.price) === 0; }).length;
+    const feat = [...notes].sort(function(a,b){ return (Number(b.rating)||0)-(Number(a.rating)||0); }).slice(0,8);
     const latest = notes.slice(0,8);
     app.innerHTML =
       '<div class="hero"><h1>Find notes. Ace exams.</h1><p>Buy &amp; sell quality study notes from TUM students — live marketplace.</p>' +
@@ -194,13 +277,13 @@ VIEWS.home = async function(){
       '<div><b>'+DEPARTMENTS.length+'</b><span>departments</span></div></div></div>' +
       '<div class="section-head"><div class="section-title">Browse by department</div></div><div class="chips">' +
       '<div class="chip" onclick="deptGo(\'\')">All</div>' +
-      DEPARTMENTS.map(d=>'<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>').join("") + '</div>' +
+      DEPARTMENTS.map(function(d){ return '<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>'; }).join("") + '</div>' +
       '<div class="section-head"><div class="section-title">Top rated</div><button class="section-link" onclick="go(\'browse\')">View all →</button></div>' +
       '<div class="grid">' + feat.map(noteCard).join("") + '</div>' +
       '<div class="section-head"><div class="section-title">Fresh uploads</div></div>' +
       '<div class="grid">' + latest.map(noteCard).join("") + '</div>' +
       (notes.length === 0 ? '<div class="empty">No approved notes yet — be the first to <a href="#" onclick="go(\'sell\');return false;" style="color:var(--brand);font-weight:700">sell a note</a>!</div>' : '');
-    document.getElementById("hq").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
+    document.getElementById("hq").addEventListener("keydown", function(e){ if(e.key === "Enter") doSearch(); });
   }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
 };
 function doSearch(){ filters.q = document.getElementById("hq").value.trim(); saveFilters(); go("browse"); }
@@ -210,13 +293,13 @@ VIEWS.browse = async function(){
   app.innerHTML = '<div class="grid">' + '<div class="skel"></div>'.repeat(4) + '</div>';
   try{
     const notes = await approvedNotes(300);
-    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))].sort();
+    DEPARTMENTS = [...new Set(notes.map(function(n){ return n.department; }).filter(Boolean))].sort();
     renderBrowse(notes);
   }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
 };
 function renderBrowse(notes){
   const f = filters;
-  let list = notes.filter(n => {
+  let list = notes.filter(function(n){
     if(f.q){ const q = f.q.toLowerCase(); if(!((n.title||"").toLowerCase().includes(q) || (n.subject||"").toLowerCase().includes(q) || (n.seller_name||"").toLowerCase().includes(q))) return false; }
     if(f.dept && n.department !== f.dept) return false;
     if(f.free === "free" && Number(n.price) !== 0) return false;
@@ -226,17 +309,20 @@ function renderBrowse(notes){
     if(f.band !== "any"){ const lim = {b50:50,b100:100,b200:200,b300:300}[f.band]; if((Number(n.price)||0) > lim) return false; }
     return true;
   });
-  const sorts = { new:(a,b)=>(+b.created_at||0)-(+a.created_at||0), plow:(a,b)=>(+a.price||0)-(+b.price||0),
-    phigh:(a,b)=>(+b.price||0)-(+a.price||0), top:(a,b)=>(+b.rating||0)-(+a.rating||0) };
+  const sorts = { new:function(a,b){ return (+b.created_at||0)-(+a.created_at||0); },
+    plow:function(a,b){ return (+a.price||0)-(+b.price||0); },
+    phigh:function(a,b){ return (+b.price||0)-(+a.price||0); },
+    top:function(a,b){ return (+b.rating||0)-(+a.rating||0); } };
   list.sort(sorts[f.sort] || sorts.new);
+  const selVal = {ffree:"free", fdept:"dept", fsem:"sem", fband:"band", fsort:"sort"};
   app.innerHTML =
     '<div class="section-title" style="margin-top:4px">Browse notes</div>' +
     '<div class="filters">' +
       '<div class="frow"><label>Search</label><input type="text" id="fq" placeholder="Title, subject, seller…" value="'+esc(f.q)+'" style="flex:1;min-width:180px">' +
       '<label>Type</label><select id="ffree"><option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option></select>' +
-      '<label>Department</label><select id="fdept"><option value="">All</option>' + DEPARTMENTS.map(d=>'<option>'+esc(d)+'</option>').join("") + '</select></div>' +
+      '<label>Department</label><select id="fdept"><option value="">All</option>' + DEPARTMENTS.map(function(d){ return '<option>'+esc(d)+'</option>'; }).join("") + '</select></div>' +
       '<div class="frow"><label>Subject</label><input type="text" id="fsub" placeholder="e.g. Calculus" value="'+esc(f.subject)+'">' +
-      '<label>Semester</label><select id="fsem"><option value="">All</option>'+[1,2,3,4,5,6,7,8].map(s=>'<option>'+s+'</option>').join("")+'</select>' +
+      '<label>Semester</label><select id="fsem"><option value="">All</option>'+[1,2,3,4,5,6,7,8].map(function(s){ return '<option>'+s+'</option>'; }).join("")+'</select>' +
       '<label>Max price</label><select id="fband"><option value="any">Any</option><option value="b50">≤ Rs 50</option><option value="b100">≤ Rs 100</option><option value="b200">≤ Rs 200</option><option value="b300">≤ Rs 300</option></select>' +
       '<label>Sort</label><select id="fsort"><option value="new">Newest first</option><option value="plow">Price: low → high</option><option value="phigh">Price: high → low</option><option value="top">Top rated</option></select>' +
       '<button class="btn small ghost" onclick="applyFilters()">Apply</button></div>' +
@@ -244,8 +330,8 @@ function renderBrowse(notes){
     '<div style="color:var(--muted);font-size:14px;margin-bottom:14px">'+list.length+' note(s) found · updates live</div>' +
     '<div class="grid">' + list.map(noteCard).join("") + '</div>' +
     (list.length === 0 ? '<div class="empty">No notes match your filters.</div>' : '');
-  ["ffree","fdept","fsem","fband","fsort"].forEach(id => document.getElementById(id).value = f[id==="ffree"?"free":id==="fdept"?"dept":id==="fsem"?"sem":id==="fband"?"band":"sort"]);
-  document.getElementById("fq").addEventListener("keydown", e => { if(e.key === "Enter") applyFilters(); });
+  Object.keys(selVal).forEach(function(id){ document.getElementById(id).value = f[selVal[id]]; });
+  document.getElementById("fq").addEventListener("keydown", function(e){ if(e.key === "Enter") applyFilters(); });
 }
 function applyFilters(){
   filters.q = document.getElementById("fq").value.trim();
@@ -257,7 +343,7 @@ function applyFilters(){
   filters.sort = document.getElementById("fsort").value;
   saveFilters(); VIEWS.browse();
 }
-
+/* ================= NOTE DETAIL + REVIEWS + UNLOCK ================= */
 VIEWS.detail = async function(note_id){
   app.innerHTML = '<div class="loading">Loading note…</div>';
   try{
@@ -284,108 +370,91 @@ VIEWS.detail = async function(note_id){
           '<button class="btn" onclick="showUnlockForm()">Unlock now — Rs '+Number(n.price).toLocaleString()+'</button> ' +
           '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button></div>') +
       '<div class="section-title" style="font-size:19px">Reviews</div><div id="revlist">' +
-        ((revs||[]).length ? revs.map(r=>'<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>').join("")
+        ((revs||[]).length ? revs.map(function(r){ return '<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>'; }).join("")
           : '<div class="empty" style="padding:22px">No reviews yet — be the first!</div>') + '</div>' +
       '<div class="section-title" style="font-size:17px">Write a review</div>' +
-      '<div class="frow2"><div class="field"><label>Your name</label><input id="rv_name" placeholder="e.g. Ahmed"></div>' +
-      '<div class="field"><label>Stars</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
+      '<div class="frow2"><div class="field"><label>Stars</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
       '<div class="field"><label>Comment</label><textarea id="rv_txt" placeholder="What did you think of these notes?"></textarea></div>' +
       '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:12px"></div></div>';
   }catch(e){ app.innerHTML = '<div class="err">Could not load note: '+esc(e.message)+'</div>'; }
 };
 async function submitReview(note_id){
-  const name = document.getElementById("rv_name").value.trim() || "Anonymous";
+  const u = requireLogin(); if(!u) return;
   const stars = parseInt(document.getElementById("rv_stars").value, 10);
   const comment = document.getElementById("rv_txt").value.trim();
   const msg = document.getElementById("rv_msg");
   if(!comment){ msg.innerHTML = '<div class="notice warn">Please write a comment.</div>'; return; }
   msg.innerHTML = "Submitting…";
   try{
-    const {error} = await db.from("reviews").insert({note_id, user_id: "web_"+Date.now(), user_name: name, stars, comment, timestamp: Date.now()});
+    const {error} = await db.from("reviews").insert({note_id: note_id, user_id: u.uid, user_name: u.name, stars: stars, comment: comment, timestamp: Date.now()});
     if(error) throw error;
     const {data: all} = await db.from("reviews").select("stars").eq("note_id", note_id);
-    const avg = all.reduce((s,r)=>s+Number(r.stars||0),0) / all.length;
+    const avg = all.reduce(function(s,r){ return s+Number(r.stars||0); },0) / all.length;
     await db.from("notes").update({rating: Math.round(avg*10)/10, review_count: all.length}).eq("note_id", note_id);
     msg.innerHTML = '<div class="notice ok">Review submitted — thank you!</div>';
-    setTimeout(()=>VIEWS.detail(note_id), 900);
+    setTimeout(function(){ VIEWS.detail(note_id); }, 900);
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 
-/* ================= PAID UNLOCK FLOW ================= */
+/* ---- paid unlock flow ---- */
 function showUnlockForm(){
+  const u = requireLogin(); if(!u) return;
   const n = currentNote;
   document.getElementById("unlockArea").innerHTML =
-    '<div class="field" style="margin-top:6px"><label>Your name *</label><input id="u_name"></div>' +
-    '<div class="field"><label>Your phone or email * <span style="font-weight:400;text-transform:none">(used to identify your payment later)</span></label><input id="u_contact" placeholder="e.g. 0300-1234567"></div>' +
+    '<div class="notice">Paying as <b>'+esc(u.name)+'</b> ('+esc(u.email||"")+')</div>' +
     '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')<br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
     '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
     '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>';
 }
 async function submitOrder(){
+  const u = currentUser(); if(!u) return;
   const n = currentNote;
-  const name = document.getElementById("u_name").value.trim();
-  const contact = document.getElementById("u_contact").value.trim();
   const proof = document.getElementById("u_proof");
   const msg = document.getElementById("u_msg");
-  if(!name || !contact){ msg.innerHTML = '<div class="notice warn">Please enter your name and phone/email.</div>'; return; }
   if(!proof.files.length){ msg.innerHTML = '<div class="notice warn">Please attach your payment screenshot.</div>'; return; }
   msg.innerHTML = "Uploading screenshot…";
   try{
     const proofUrl = await uploadToStorage(proof.files[0], "proofs");
     msg.innerHTML = "Submitting…";
     const {error} = await db.from("orders").insert({
-      buyer_id: contact, seller_id: n.seller_id, note_id: n.note_id,
-      amount: Number(n.price), commission: 0, seller_earning: Number(n.price),
+      buyer_id: u.uid, seller_id: n.seller_id, note_id: n.note_id,
+      amount: Number(n.price), commission: 0, seller_earning: 0,
       status: "pending", payment_proof_url: proofUrl, timestamp: Date.now()
     });
     if(error) throw error;
     document.getElementById("unlockArea").innerHTML =
-      '<div class="notice ok">✅ Screenshot received! The admin will verify your payment. Once approved, come back and use <b>"I already paid"</b> with <b>'+esc(contact)+'</b> to open your note.</div>' +
+      '<div class="notice ok">✅ Screenshot received! The admin will verify your payment. Once approved, come back and tap <b>"I already paid"</b> to open your note.</div>' +
       '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button>';
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 function showCheckAccess(){
-  document.getElementById("unlockArea").innerHTML =
-    '<div class="field" style="margin-top:6px"><label>Enter the phone/email you paid with</label><input id="c_contact" placeholder="e.g. 0300-1234567"></div>' +
-    '<button class="btn ghost" onclick="checkAccess()">Check & open</button><div id="c_msg" style="margin-top:10px"></div>';
+  const u = requireLogin(); if(!u) return;
+  checkAccess();
 }
 async function checkAccess(){
+  const u = currentUser(); if(!u) return;
   const n = currentNote;
-  const contact = document.getElementById("c_contact").value.trim();
-  const msg = document.getElementById("c_msg");
-  if(!contact){ msg.innerHTML = '<div class="notice warn">Please enter your phone/email.</div>'; return; }
-  msg.innerHTML = "Checking…";
+  const area = document.getElementById("unlockArea");
+  area.innerHTML = '<div class="loading" style="padding:20px">Checking your purchase…</div>';
   try{
-    const {data, error} = await db.from("orders").select("*").eq("note_id", n.note_id).eq("buyer_id", contact).order("timestamp",{ascending:false}).limit(1);
+    const {data, error} = await db.from("orders").select("*").eq("note_id", n.note_id).eq("buyer_id", u.uid).order("timestamp",{ascending:false}).limit(1);
     if(error) throw error;
-    if(!data.length){ msg.innerHTML = '<div class="notice warn">No payment found for this contact. Please unlock the note first.</div>'; return; }
+    if(!data.length){
+      area.innerHTML = '<div class="notice warn">No purchase found on your account. Please unlock the note first.</div>' +
+        '<button class="btn" onclick="showUnlockForm()">Unlock now — Rs '+Number(n.price).toLocaleString()+'</button>';
+      return;
+    }
     if(data[0].status === "approved"){
-      document.getElementById("unlockArea").innerHTML =
-        '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
+      area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
         (n.file_url ? '<a class="btn" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download your note</a>'
                     : '<div class="notice warn">File not attached by seller yet.</div>');
     }else{
-      msg.innerHTML = '<div class="notice">Your payment is <b>pending admin approval</b> — please check back soon.</div>';
+      area.innerHTML = '<div class="notice">Your payment is <b>pending admin approval</b> — please check back soon.</div>';
     }
-  }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+  }catch(e){ area.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 
-VIEWS.sell = function(){
-  app.innerHTML =
-    '<form class="fcard" onsubmit="submitNote(event)"><h2>Sell your notes</h2>' +
-    '<div class="sub">Reach hundreds of TUM students. Your note goes to the admin for a quick review first.</div>' +
-    '<div id="sell_msg"></div>' +
-    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers"></div>' +
-    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus"></div>' +
-    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI"></div></div>' +
-    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem">'+[1,2,3,4,5,6,7,8].map(s=>'<option>'+s+'</option>').join("")+'</select></div>' +
-    '<div class="field"><label>Price (Rs — 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required></div></div>' +
-    '<div class="field"><label>Your name (seller) *</label><input id="s_name" required placeholder="e.g. Ali Raza"></div>' +
-    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?"></textarea></div>' +
-    '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" required></div>' +
-    '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*"></div>' +
-    '<button class="btn" type="submit" style="width:100%">Submit for approval</button></form>';
-};
+/* ================= SELL ================= */
 async function uploadToStorage(file, folder){
   const ext = (file.name.split(".").pop() || "bin").toLowerCase();
   const path = folder + "/" + Date.now() + "_" + Math.random().toString(36).slice(2,8) + "." + ext;
@@ -393,9 +462,35 @@ async function uploadToStorage(file, folder){
   if(error) throw error;
   return db.storage.from("notes").getPublicUrl(path).data.publicUrl;
 }
+VIEWS.sell = async function(){
+  const u = requireLogin(); if(!u) return;
+  app.innerHTML = '<div class="loading">Loading…</div>';
+  const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
+  const used = count || 0;
+  const full = used >= MAX_NOTES_PER_SELLER;
+  app.innerHTML =
+    '<form class="fcard" onsubmit="submitNote(event)"><h2>Sell your notes</h2>' +
+    '<div class="sub">Reach hundreds of TUM students. Selling as <b>'+esc(u.name)+'</b>.</div>' +
+    '<div class="notice">You have uploaded <b>'+used+'/'+MAX_NOTES_PER_SELLER+'</b> notes.</div>' +
+    (full ? '<div class="notice warn">You have reached the maximum of '+MAX_NOTES_PER_SELLER+' notes. Delete an old note to upload a new one.</div>'
+          : '<div class="notice">Your note goes to the <b>admin for approval</b> first — the admin will open and verify your file before publishing it.</div>') +
+    '<div id="sell_msg"></div>' +
+    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers" '+(full?"disabled":"")+ '></div>' +
+    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus" '+(full?"disabled":"")+ '></div>' +
+    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI" '+(full?"disabled":"")+ '></div></div>' +
+    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem" '+(full?"disabled":"")+ '>'+[1,2,3,4,5,6,7,8].map(function(s){ return '<option>'+s+'</option>'; }).join("")+'</select></div>' +
+    '<div class="field"><label>Price (Rs — 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required '+(full?"disabled":"")+ '></div></div>' +
+    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" '+(full?"disabled":"")+ '></textarea></div>' +
+    '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" '+(full?"disabled":"")+ '></div>' +
+    '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*" '+(full?"disabled":"")+ '></div>' +
+    '<button class="btn" type="submit" style="width:100%" '+(full?"disabled":"")+ '>Submit for approval</button></form>';
+};
 async function submitNote(ev){
   ev.preventDefault();
+  const u = currentUser(); if(!u) return;
   const msg = document.getElementById("sell_msg");
+  const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
+  if((count||0) >= MAX_NOTES_PER_SELLER){ msg.innerHTML = '<div class="err">Limit reached: maximum '+MAX_NOTES_PER_SELLER+' notes per seller.</div>'; return; }
   const fileInput = document.getElementById("s_file");
   const coverInput = document.getElementById("s_cover");
   if(!fileInput.files.length){ msg.innerHTML = '<div class="notice warn">Please attach your note file.</div>'; return; }
@@ -404,170 +499,266 @@ async function submitNote(ev){
     const fileUrl = await uploadToStorage(fileInput.files[0], "files");
     let coverUrl = "";
     if(coverInput.files.length){ msg.innerHTML = "Uploading cover…"; coverUrl = await uploadToStorage(coverInput.files[0], "covers"); }
-    const body = {
+    msg.innerHTML = "Saving…";
+    const {error} = await db.from("notes").insert({
       note_id: Math.floor(Date.now()/1000),
-      seller_id: "web_" + Date.now(),
-      seller_name: document.getElementById("s_name").value.trim(),
+      seller_id: u.uid, seller_name: u.name,
       title: document.getElementById("s_title").value.trim(),
       subject: document.getElementById("s_subject").value.trim(),
       department: document.getElementById("s_dept").value.trim() || "Computing/AI",
       semester: parseInt(document.getElementById("s_sem").value,10),
       price: parseInt(document.getElementById("s_price").value,10) || 0,
       ai_summary: document.getElementById("s_desc").value.trim(),
-      file_url: fileUrl,
-      image_urls: coverUrl,
+      file_url: fileUrl, image_urls: coverUrl,
       status: "pending", created_at: Date.now()
-    };
-    msg.innerHTML = "Saving…";
-    const {error} = await db.from("notes").insert(body);
+    });
     if(error) throw error;
-    msg.innerHTML = '<div class="notice ok">Submitted! Your note is <b>pending admin approval</b> and will appear publicly once approved.</div>';
+    msg.innerHTML = '<div class="notice ok">Submitted! The admin will <b>open and verify your file</b>, then publish it.</div>';
     ev.target.reset();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
-};
-
-/* ================= ADMIN ================= */
-function adminSession(){ try{ return JSON.parse(localStorage.getItem("tum_admin") || "null"); }catch(e){ return null; } }
-VIEWS.admin = function(){
-  const s = adminSession();
-  if(!s){
-    app.innerHTML =
-      '<form class="fcard" onsubmit="adminLogin(event)" style="max-width:440px;margin:34px auto"><h2>Admin login</h2>' +
-      '<div class="sub">Only accounts marked as admin can sign in.</div><div id="al_msg"></div>' +
-      '<div class="field"><label>Email</label><input id="al_email" type="email" required></div>' +
-      '<div class="field"><label>Password</label><input id="al_pass" type="password" required></div>' +
-      '<button class="btn" type="submit" style="width:100%">Sign in</button></form>';
-    return;
-  }
-  adminDash(s, "pending");
-};
-async function adminLogin(ev){
-  ev.preventDefault();
-  const msg = document.getElementById("al_msg");
-  const email = document.getElementById("al_email").value.trim();
-  const pass = document.getElementById("al_pass").value;
-  msg.innerHTML = "Signing in…";
-  try{
-    const {data, error} = await db.from("users").select("uid,name,email,is_admin")
-      .eq("email", email).eq("password", pass).eq("is_admin", true).limit(1);
-    if(error) throw error;
-    if(!data.length){ msg.innerHTML = '<div class="err">Invalid credentials or not an admin.</div>'; return; }
-    localStorage.setItem("tum_admin", JSON.stringify({uid: data[0].uid, name: data[0].name}));
-    adminDash(data[0], "pending");
-  }catch(e){ msg.innerHTML = '<div class="err">Login failed: '+esc(e.message)+'</div>'; }
 }
-function adminLogout(){ localStorage.removeItem("tum_admin"); go("home"); }
+
+/* ================= WALLET ================= */
+VIEWS.wallet = async function(){
+  const u = requireLogin(); if(!u) return;
+  app.innerHTML = '<div class="loading">Loading wallet…</div>';
+  await refreshWallet();
+  const me = currentUser();
+  const {data: wds} = await db.from("withdrawals").select("*").eq("seller_id", me.uid).order("timestamp",{ascending:false}).limit(20);
+  app.innerHTML =
+    '<div class="section-title" style="margin-top:4px">My wallet</div>' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:24px">' +
+      '<div class="statcard"><div class="lbl">Available balance</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
+      '<div class="statcard"><div class="lbl">Total earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
+    '</div>' +
+    '<div class="notice">When your note sells, <b>70% goes to your wallet</b> and 30% is the platform commission.</div>' +
+    '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
+    '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+'. Money is sent to your Easypaisa number after admin approval.</div><div id="w_msg"></div>' +
+    '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
+    '<div class="field"><label>Your Easypaisa number *</label><input id="w_ep" required placeholder="e.g. 0300-1234567" value="'+esc(me.easypaisa_number||"")+'"></div></div>' +
+    '<button class="btn" style="width:100%">Request withdrawal</button></form>' +
+    '<div class="section-title" style="font-size:18px">Withdrawal history</div>' +
+    ((wds && wds.length) ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Amount</th><th>Easypaisa</th><th>Date</th><th>Status</th></tr>' +
+      wds.map(function(w){ return '<tr><td><b>Rs '+Number(w.amount||0).toLocaleString()+'</b></td><td>'+esc(w.easypaisa_number||"")+'</td><td>'+fmtDate(w.timestamp)+'</td><td><span class="badge '+(w.status==="pending"?"pending":w.status==="rejected"?"rejected":"")+'">'+esc(w.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
+      : '<div class="empty">No withdrawals yet.</div>');
+};
+async function submitWithdraw(ev){
+  ev.preventDefault();
+  const me = currentUser(); if(!me) return;
+  const msg = document.getElementById("w_msg");
+  const amount = Math.floor(Number(document.getElementById("w_amount").value));
+  const ep = document.getElementById("w_ep").value.trim();
+  if(!amount || amount < MIN_WITHDRAWAL){ msg.innerHTML = '<div class="notice warn">Minimum withdrawal is Rs '+MIN_WITHDRAWAL+'.</div>'; return; }
+  if(!ep){ msg.innerHTML = '<div class="notice warn">Please enter your Easypaisa number.</div>'; return; }
+  msg.innerHTML = "Processing…";
+  try{
+    const {data} = await db.from("users").select("wallet").eq("uid", me.uid).limit(1);
+    const bal = Number(data[0].wallet)||0;
+    if(amount > bal){ msg.innerHTML = '<div class="err">Insufficient balance. Available: Rs '+bal.toLocaleString()+'</div>'; return; }
+    const {error: e1} = await db.from("users").update({wallet: bal - amount, easypaisa_number: ep}).eq("uid", me.uid);
+    if(e1) throw e1;
+    const {error: e2} = await db.from("withdrawals").insert({seller_id: me.uid, seller_name: me.name, amount: amount, easypaisa_number: ep, status: "pending", timestamp: Date.now()});
+    if(e2) throw e2;
+    await refreshWallet();
+    msg.innerHTML = '<div class="notice ok">Withdrawal requested! Rs '+amount.toLocaleString()+' will be sent to '+esc(ep)+' after admin approval.</div>';
+    setTimeout(function(){ VIEWS.wallet(); }, 1400);
+  }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+}
+/* ================= ADMIN ================= */
+VIEWS.admin = function(){
+  const u = currentUser();
+  if(!u){ toast("Please login first"); go("login"); return; }
+  if(!u.is_admin){ app.innerHTML = '<div class="empty">🔒 Admins only.</div>'; return; }
+  adminDash(u, "pending");
+};
+function adminTabs(active){
+  const t = function(k, label){ return '<button class="'+(active===k?"active":"")+'" onclick="adminDash(currentUser(),\''+k+'\')">'+label+'</button>'; };
+  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + '</div>';
+}
+function adminHead(s, note){
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
+    '<div class="section-title" style="margin:0">Admin panel</div>' +
+    '<div><span style="font-size:14px;color:var(--muted);margin-right:12px">👤 '+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="logout()">Logout</button></div></div>' +
+    (note ? '<div class="notice">'+note+'</div>' : '');
+}
 async function adminDash(s, tab){
   app.innerHTML = '<div class="loading">Loading admin panel…</div>';
-  if(tab === "orders"){ return adminOrdersView(s); }
+  if(tab === "orders") return adminOrdersView(s);
+  if(tab === "withdrawals") return adminWithdrawalsView(s);
   try{
     let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
     if(tab === "pending") q = q.eq("status","pending");
     if(tab === "reported") q = q.eq("is_reported", true);
     const {data: notes, error} = await q;
     if(error) throw error;
-    const rows = notes.map(n =>
-      '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+' · '+fmtDate(n.created_at)+'</span>' +
-      (n.is_reported ? '<br><span class="badge" style="background:var(--red-soft);color:var(--red)">Reported: '+esc(n.report_reason||"no reason")+'</span>' : '') +
-      ' <span class="badge '+(n.status==="pending"?"pending":n.status==="rejected"?"rejected":"")+'">'+esc(n.status||"")+'</span></td>' +
+    const rows = notes.map(function(n){
+      return '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br>' +
+      '<span style="color:var(--muted);font-size:12.5px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+' · '+fmtDate(n.created_at)+'</span><br>' +
+      (n.image_urls ? '<a href="'+esc(n.image_urls)+'" target="_blank" rel="noopener"><img src="'+esc(n.image_urls)+'" style="width:90px;border-radius:8px;margin-top:8px;border:1px solid var(--line)" loading="lazy"></a><br>' : '') +
+      (n.is_reported ? '<span class="badge" style="background:var(--red-soft);color:var(--red)">Reported: '+esc(n.report_reason||"no reason")+'</span> ' : '') +
+      '<span class="badge '+(n.status==="pending"?"pending":n.status==="rejected"?"rejected":"")+'">'+esc(n.status||"")+'</span></td>' +
       '<td class="acts">' +
+      (n.file_url ? '<a class="btn small ghost" style="text-decoration:none" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">📄 View file</a> ' : '<span style="font-size:12px;color:var(--red)">no file</span> ') +
       (n.status !== "approved" ? '<button class="btn small" onclick="adminSetStatus('+n.note_id+',\'approved\',\''+tab+'\')">Approve</button> ' : '') +
       (n.status !== "rejected" ? '<button class="btn small danger" onclick="adminSetStatus('+n.note_id+',\'rejected\',\''+tab+'\')">Reject</button> ' : '') +
       (n.is_reported ? '<button class="btn small ghost" onclick="adminDismissReport('+n.note_id+',\''+tab+'\')">Dismiss report</button>' : '') +
-      '</td></tr>').join("");
-    app.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
-      '<div class="section-title" style="margin:0">Admin panel</div>' +
-      '<div><span style="font-size:14px;color:var(--muted);margin-right:12px">👤 '+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
-      '<div class="notice">New submissions arrive here as <b>pending</b> — approve them to publish instantly to the live site.</div>' +
-      '<div class="tabs"><button class="'+(tab==="pending"?"active":"")+'" onclick="adminDash(adminSession(),\'pending\')">Pending</button>' +
-      '<button class="'+(tab==="reported"?"active":"")+'" onclick="adminDash(adminSession(),\'reported\')">Reported</button>' +
-      '<button class="'+(tab==="all"?"active":"")+'" onclick="adminDash(adminSession(),\'all\')">All notes</button>' +
-      '<button class="'+(tab==="orders"?"active":"")+'" onclick="adminDash(adminSession(),\'orders\')">💰 Orders</button></div>' +
+      '</td></tr>';
+    }).join("");
+    app.innerHTML = adminHead(s, tab === "pending" ? "Open each file with <b>📄 View file</b> to verify it, then approve to publish." : null) +
+      adminTabs(tab) +
       (notes.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Note</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">Nothing here. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 }
 async function adminSetStatus(note_id, status, tab){
   if(!confirm("Set this note to '"+status+"'?")) return;
-  const {error} = await db.from("notes").update({status}).eq("note_id", note_id);
+  const {error} = await db.from("notes").update({status: status}).eq("note_id", note_id);
   if(error){ alert("Failed: " + error.message); return; }
-  adminDash(adminSession(), tab);
+  toast(status === "approved" ? "✅ Note published" : "Note rejected");
+  adminDash(currentUser(), tab);
 }
 async function adminDismissReport(note_id, tab){
   await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
-  adminDash(adminSession(), tab);
+  adminDash(currentUser(), tab);
 }
 
-/* ---- Admin: payment orders ---- */
+/* ---- admin: payment orders (30% commission / 70% seller) ---- */
 async function adminOrdersView(s){
   try{
     const {data: orders, error} = await db.from("orders").select("*").order("timestamp",{ascending:false}).limit(200);
     if(error) throw error;
-    const ids = [...new Set((orders||[]).map(o => o.note_id))];
-    let titleMap = {};
+    const ids = [...new Set((orders||[]).map(function(o){ return o.note_id; }))];
+    const titleMap = {};
     if(ids.length){
       const {data: ns} = await db.from("notes").select("note_id,title").in("note_id", ids);
-      (ns||[]).forEach(n => titleMap[n.note_id] = n.title);
+      (ns||[]).forEach(function(n){ titleMap[n.note_id] = n.title; });
     }
-    const rows = (orders||[]).map(o =>
-      '<tr><td><b>'+esc(titleMap[o.note_id] || ("Note #"+o.note_id))+'</b><br>' +
+    const rows = (orders||[]).map(function(o){
+      return '<tr><td><b>'+esc(titleMap[o.note_id] || ("Note #"+o.note_id))+'</b><br>' +
       '<span style="color:var(--muted);font-size:12.5px">Buyer: '+esc(o.buyer_id||"")+' · Rs '+Number(o.amount||0).toLocaleString()+' · '+fmtDate(o.timestamp)+'</span><br>' +
       (o.payment_proof_url ? '<a href="'+esc(o.payment_proof_url)+'" target="_blank" rel="noopener"><img src="'+esc(o.payment_proof_url)+'" style="width:120px;border-radius:8px;margin-top:8px;border:1px solid var(--line)" loading="lazy"></a><br><span style="font-size:11.5px;color:var(--muted)">click to enlarge</span>' : '<span style="color:var(--red);font-size:12.5px">no screenshot</span>') +
       ' <span class="badge '+(o.status==="pending"?"pending":o.status==="rejected"?"rejected":"")+'">'+esc(o.status||"")+'</span></td>' +
       '<td class="acts">' +
       (o.status === "pending" ? '<button class="btn small" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'approved\')">✓ Verify & unlock</button> ' +
         '<button class="btn small danger" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'rejected\')">Reject</button>' : '<span style="color:var(--muted);font-size:12.5px">done</span>') +
-      '</td></tr>').join("");
-    app.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
-      '<div class="section-title" style="margin:0">Admin panel</div>' +
-      '<div><span style="font-size:14px;color:var(--muted);margin-right:12px">👤 '+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
-      '<div class="notice">Verify each payment screenshot below — <b>Verify & unlock</b> gives the buyer access to the note.</div>' +
-      '<div class="tabs"><button onclick="adminDash(adminSession(),\'pending\')">Pending</button>' +
-      '<button onclick="adminDash(adminSession(),\'reported\')">Reported</button>' +
-      '<button onclick="adminDash(adminSession(),\'all\')">All notes</button>' +
-      '<button class="active" onclick="adminDash(adminSession(),\'orders\')">💰 Orders</button></div>' +
+      '</td></tr>';
+    }).join("");
+    app.innerHTML = adminHead(s, "Verify each payment screenshot — <b>Verify & unlock</b> splits it: <b>70% to seller wallet</b>, <b>30% commission to your wallet</b>.") +
+      adminTabs("orders") +
       (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Order</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">No orders yet. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load orders: '+esc(e.message)+'</div>'; }
 }
 async function adminOrderSet(order_id, note_id, status){
   if(!confirm("Set this order to '"+status+"'?")) return;
-  const {error} = await db.from("orders").update({status}).eq("order_id", order_id);
-  if(error){ alert("Failed: " + error.message); return; }
-  if(status === "approved"){
-    const {data} = await db.from("notes").select("downloads").eq("note_id", note_id).limit(1);
-    if(data && data.length) await db.from("notes").update({downloads: (Number(data[0].downloads)||0)+1}).eq("note_id", note_id);
-  }
-  toast(status === "approved" ? "✅ Order approved — buyer unlocked" : "Order rejected");
-  adminDash(adminSession(), "orders");
+  try{
+    const {data: orows} = await db.from("orders").select("*").eq("order_id", order_id).limit(1);
+    if(!orows || !orows.length) throw new Error("Order not found");
+    const o = orows[0];
+    const amount = Number(o.amount)||0;
+    const commission = Math.round(amount * ADMIN_COMMISSION);
+    const earning = amount - commission;
+    const {error} = await db.from("orders").update({status: status, commission: commission, seller_earning: earning}).eq("order_id", order_id);
+    if(error) throw error;
+    if(status === "approved"){
+      const {data: srow} = await db.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).limit(1);
+      if(srow && srow.length){
+        await db.from("users").update({wallet: (Number(srow[0].wallet)||0)+earning, total_earnings: (Number(srow[0].total_earnings)||0)+earning}).eq("uid", o.seller_id);
+      }
+      const admin = currentUser();
+      if(admin){
+        const {data: arow} = await db.from("users").select("wallet,total_earnings").eq("uid", admin.uid).limit(1);
+        if(arow && arow.length){
+          await db.from("users").update({wallet: (Number(arow[0].wallet)||0)+commission, total_earnings: (Number(arow[0].total_earnings)||0)+commission}).eq("uid", admin.uid);
+        }
+      }
+      const {data: nrow} = await db.from("notes").select("downloads").eq("note_id", note_id).limit(1);
+      if(nrow && nrow.length) await db.from("notes").update({downloads: (Number(nrow[0].downloads)||0)+1}).eq("note_id", note_id);
+      toast("✅ Approved — seller +Rs "+earning.toLocaleString()+", your commission Rs "+commission.toLocaleString());
+    }else{
+      toast("Order rejected");
+    }
+    adminDash(currentUser(), "orders");
+  }catch(e){ alert("Failed: " + e.message); }
+}
+
+/* ---- admin: withdrawals ---- */
+async function adminWithdrawalsView(s){
+  try{
+    const {data: wds, error} = await db.from("withdrawals").select("*").order("timestamp",{ascending:false}).limit(200);
+    if(error) throw error;
+    const rows = (wds||[]).map(function(w){
+      return '<tr><td><b>Rs '+Number(w.amount||0).toLocaleString()+'</b><br>' +
+      '<span style="color:var(--muted);font-size:12.5px">'+esc(w.seller_name||"")+' ('+esc(w.seller_id||"")+') · '+fmtDate(w.timestamp)+'</span><br>' +
+      '<span style="font-size:13px">Easypaisa: <b>'+esc(w.easypaisa_number||"")+'</b></span> ' +
+      '<span class="badge '+(w.status==="pending"?"pending":w.status==="rejected"?"rejected":"")+'">'+esc(w.status||"")+'</span></td>' +
+      '<td class="acts">' +
+      (w.status === "pending" ? '<button class="btn small" onclick="adminWithdrawSet('+w.request_id+',\''+esc(w.seller_id)+'\','+Number(w.amount||0)+',\'approved\')">✓ Sent</button> ' +
+        '<button class="btn small danger" onclick="adminWithdrawSet('+w.request_id+',\''+esc(w.seller_id)+'\','+Number(w.amount||0)+',\'rejected\')">Reject & refund</button>'
+        : '<span style="color:var(--muted);font-size:12.5px">done</span>') +
+      '</td></tr>';
+    }).join("");
+    app.innerHTML = adminHead(s, "Send the amount via Easypaisa to the number shown, then tap <b>✓ Sent</b>. Rejecting refunds the amount to the seller's wallet.") +
+      adminTabs("withdrawals") +
+      (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Request</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">No withdrawal requests. 🎉</div>');
+  }catch(e){ app.innerHTML = '<div class="err">Could not load withdrawals: '+esc(e.message)+'</div>'; }
+}
+async function adminWithdrawSet(request_id, seller_id, amount, status){
+  if(!confirm("Mark this withdrawal as '"+status+"'?")) return;
+  try{
+    const {error} = await db.from("withdrawals").update({status: status}).eq("request_id", request_id);
+    if(error) throw error;
+    if(status === "rejected"){
+      const {data} = await db.from("users").select("wallet").eq("uid", seller_id).limit(1);
+      if(data && data.length) await db.from("users").update({wallet: (Number(data[0].wallet)||0)+Number(amount)}).eq("uid", seller_id);
+      toast("Rejected — amount refunded to seller wallet");
+    }else{
+      toast("✅ Marked as sent");
+    }
+    adminDash(currentUser(), "withdrawals");
+  }catch(e){ alert("Failed: " + e.message); }
 }
 
 /* ================= REALTIME ================= */
+let walletChannel = null;
+function subscribeWallet(){
+  try{
+    if(walletChannel){ db.removeChannel(walletChannel); walletChannel = null; }
+    const u = currentUser(); if(!u) return;
+    walletChannel = db.channel("wallet-" + u.uid)
+      .on("postgres_changes", {event:"UPDATE", schema:"public", table:"users", filter:"uid=eq."+u.uid}, function(){ refreshWallet(); })
+      .subscribe();
+  }catch(e){}
+}
 function initRealtime(){
   const dot = document.getElementById("liveDot");
   db.channel("tum-hub-live")
-    .on("postgres_changes", {event:"INSERT", schema:"public", table:"notes"}, p => {
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"notes"}, function(p){
       toast("📝 New note submitted: " + (p.new.title || "Untitled"));
       if(currentView === "home" || currentView === "browse") go(currentView, currentArg);
-      if(currentView === "admin") adminDash(adminSession(), "pending");
+      if(currentView === "admin") adminDash(currentUser(), "pending");
     })
-    .on("postgres_changes", {event:"UPDATE", schema:"public", table:"notes"}, p => {
+    .on("postgres_changes", {event:"UPDATE", schema:"public", table:"notes"}, function(p){
       if(p.new.status === "approved" && p.old.status !== "approved") toast("✅ Note approved & live: " + (p.new.title || ""));
       if(currentView === "home" || currentView === "browse") go(currentView, currentArg);
-      if(currentView === "admin") adminDash(adminSession(), "pending");
+      if(currentView === "admin") adminDash(currentUser(), "pending");
     })
-    .on("postgres_changes", {event:"INSERT", schema:"public", table:"reviews"}, () => {
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"reviews"}, function(){
       toast("⭐ New review posted");
       if(currentView === "detail") VIEWS.detail(currentArg);
     })
-    .on("postgres_changes", {event:"INSERT", schema:"public", table:"orders"}, p => {
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"orders"}, function(p){
       toast("💰 New payment received — Rs " + Number(p.new.amount||0).toLocaleString());
-      if(currentView === "admin") adminDash(adminSession(), "orders");
+      if(currentView === "admin") adminDash(currentUser(), "orders");
     })
-    .subscribe(status => { dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"withdrawals"}, function(p){
+      toast("🏧 New withdrawal request — Rs " + Number(p.new.amount||0).toLocaleString());
+      if(currentView === "admin") adminDash(currentUser(), "withdrawals");
+    })
+    .subscribe(function(status){ dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
 }
 
 /* ================= BOOT ================= */
+updateUserBox();
+subscribeWallet();
 go("home");
 initRealtime();
 </script>
