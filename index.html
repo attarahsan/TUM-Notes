@@ -136,6 +136,10 @@ const SUPABASE_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/* Payment receiving details — buyer pays here, uploads screenshot, admin approves */
+const PAYMENT_METHOD = "JazzCash";
+const PAYMENT_NUMBER = "0300-0000000"; /* TODO: owner — set your real number */
+
 /* ================= HELPERS ================= */
 const app = document.getElementById("app");
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -145,7 +149,7 @@ function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price fre
 function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4200); }
 function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
 function go(view, arg){ setNav(view); currentView = view; currentArg = arg; VIEWS[view](arg); window.scrollTo(0,0); }
-let currentView = "home", currentArg = null;
+let currentView = "home", currentArg = null, currentNote = null;
 
 /* ================= FILTER STATE ================= */
 const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"},
@@ -260,7 +264,9 @@ VIEWS.detail = async function(note_id){
     if(error) throw error;
     if(!data.length || data[0].status !== "approved"){ app.innerHTML = '<div class="empty">Note not found.</div>'; return; }
     const n = data[0];
+    currentNote = n;
     const {data: revs} = await db.from("reviews").select("*").eq("note_id", note_id).order("timestamp",{ascending:false}).limit(50);
+    const isFree = Number(n.price) === 0;
     app.innerHTML =
       '<button class="back" onclick="go(\'browse\')">← Back to browse</button>' +
       '<div class="detail">' +
@@ -270,8 +276,12 @@ VIEWS.detail = async function(note_id){
       '<div class="topline">'+priceStr(n.price)+starStr(n.rating)+
       '<span style="font-size:13.5px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
       (n.ai_summary ? '<div class="desc">'+esc(n.ai_summary)+'</div>' : '') +
-      (n.file_url ? '<div style="margin:16px 0"><a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download file</a></div>'
-                  : '<div class="notice warn" style="margin:16px 0">The seller has not attached a downloadable file yet.</div>') +
+      (isFree
+        ? (n.file_url ? '<div style="margin:16px 0"><a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download file</a></div>'
+                      : '<div class="notice warn" style="margin:16px 0">The seller has not attached a downloadable file yet.</div>')
+        : '<div id="unlockArea" style="margin:16px 0"><div class="notice"><b>🔒 Paid note — Rs '+Number(n.price).toLocaleString()+'</b><br>Pay the amount, upload your payment screenshot, and the admin will unlock it for you.</div>' +
+          '<button class="btn" onclick="showUnlockForm()">Unlock now — Rs '+Number(n.price).toLocaleString()+'</button> ' +
+          '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button></div>') +
       '<div class="section-title" style="font-size:19px">Reviews</div><div id="revlist">' +
         ((revs||[]).length ? revs.map(r=>'<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>').join("")
           : '<div class="empty" style="padding:22px">No reviews yet — be the first!</div>') + '</div>' +
@@ -297,6 +307,65 @@ async function submitReview(note_id){
     await db.from("notes").update({rating: Math.round(avg*10)/10, review_count: all.length}).eq("note_id", note_id);
     msg.innerHTML = '<div class="notice ok">Review submitted — thank you!</div>';
     setTimeout(()=>VIEWS.detail(note_id), 900);
+  }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+}
+
+/* ================= PAID UNLOCK FLOW ================= */
+function showUnlockForm(){
+  const n = currentNote;
+  document.getElementById("unlockArea").innerHTML =
+    '<div class="field" style="margin-top:6px"><label>Your name *</label><input id="u_name"></div>' +
+    '<div class="field"><label>Your phone or email * <span style="font-weight:400;text-transform:none">(used to identify your payment later)</span></label><input id="u_contact" placeholder="e.g. 0300-1234567"></div>' +
+    '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b><br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
+    '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
+    '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>';
+}
+async function submitOrder(){
+  const n = currentNote;
+  const name = document.getElementById("u_name").value.trim();
+  const contact = document.getElementById("u_contact").value.trim();
+  const proof = document.getElementById("u_proof");
+  const msg = document.getElementById("u_msg");
+  if(!name || !contact){ msg.innerHTML = '<div class="notice warn">Please enter your name and phone/email.</div>'; return; }
+  if(!proof.files.length){ msg.innerHTML = '<div class="notice warn">Please attach your payment screenshot.</div>'; return; }
+  msg.innerHTML = "Uploading screenshot…";
+  try{
+    const proofUrl = await uploadToStorage(proof.files[0], "proofs");
+    msg.innerHTML = "Submitting…";
+    const {error} = await db.from("orders").insert({
+      buyer_id: contact, seller_id: n.seller_id, note_id: n.note_id,
+      amount: Number(n.price), commission: 0, seller_earning: Number(n.price),
+      status: "pending", payment_proof_url: proofUrl, timestamp: Date.now()
+    });
+    if(error) throw error;
+    document.getElementById("unlockArea").innerHTML =
+      '<div class="notice ok">✅ Screenshot received! The admin will verify your payment. Once approved, come back and use <b>"I already paid"</b> with <b>'+esc(contact)+'</b> to open your note.</div>' +
+      '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button>';
+  }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+}
+function showCheckAccess(){
+  document.getElementById("unlockArea").innerHTML =
+    '<div class="field" style="margin-top:6px"><label>Enter the phone/email you paid with</label><input id="c_contact" placeholder="e.g. 0300-1234567"></div>' +
+    '<button class="btn ghost" onclick="checkAccess()">Check & open</button><div id="c_msg" style="margin-top:10px"></div>';
+}
+async function checkAccess(){
+  const n = currentNote;
+  const contact = document.getElementById("c_contact").value.trim();
+  const msg = document.getElementById("c_msg");
+  if(!contact){ msg.innerHTML = '<div class="notice warn">Please enter your phone/email.</div>'; return; }
+  msg.innerHTML = "Checking…";
+  try{
+    const {data, error} = await db.from("orders").select("*").eq("note_id", n.note_id).eq("buyer_id", contact).order("timestamp",{ascending:false}).limit(1);
+    if(error) throw error;
+    if(!data.length){ msg.innerHTML = '<div class="notice warn">No payment found for this contact. Please unlock the note first.</div>'; return; }
+    if(data[0].status === "approved"){
+      document.getElementById("unlockArea").innerHTML =
+        '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
+        (n.file_url ? '<a class="btn" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download your note</a>'
+                    : '<div class="notice warn">File not attached by seller yet.</div>');
+    }else{
+      msg.innerHTML = '<div class="notice">Your payment is <b>pending admin approval</b> — please check back soon.</div>';
+    }
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 
@@ -389,6 +458,7 @@ async function adminLogin(ev){
 function adminLogout(){ localStorage.removeItem("tum_admin"); go("home"); }
 async function adminDash(s, tab){
   app.innerHTML = '<div class="loading">Loading admin panel…</div>';
+  if(tab === "orders"){ return adminOrdersView(s); }
   try{
     let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
     if(tab === "pending") q = q.eq("status","pending");
@@ -411,7 +481,8 @@ async function adminDash(s, tab){
       '<div class="notice">New submissions arrive here as <b>pending</b> — approve them to publish instantly to the live site.</div>' +
       '<div class="tabs"><button class="'+(tab==="pending"?"active":"")+'" onclick="adminDash(adminSession(),\'pending\')">Pending</button>' +
       '<button class="'+(tab==="reported"?"active":"")+'" onclick="adminDash(adminSession(),\'reported\')">Reported</button>' +
-      '<button class="'+(tab==="all"?"active":"")+'" onclick="adminDash(adminSession(),\'all\')">All notes</button></div>' +
+      '<button class="'+(tab==="all"?"active":"")+'" onclick="adminDash(adminSession(),\'all\')">All notes</button>' +
+      '<button class="'+(tab==="orders"?"active":"")+'" onclick="adminDash(adminSession(),\'orders\')">💰 Orders</button></div>' +
       (notes.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Note</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">Nothing here. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 }
@@ -424,6 +495,50 @@ async function adminSetStatus(note_id, status, tab){
 async function adminDismissReport(note_id, tab){
   await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
   adminDash(adminSession(), tab);
+}
+
+/* ---- Admin: payment orders ---- */
+async function adminOrdersView(s){
+  try{
+    const {data: orders, error} = await db.from("orders").select("*").order("timestamp",{ascending:false}).limit(200);
+    if(error) throw error;
+    const ids = [...new Set((orders||[]).map(o => o.note_id))];
+    let titleMap = {};
+    if(ids.length){
+      const {data: ns} = await db.from("notes").select("note_id,title").in("note_id", ids);
+      (ns||[]).forEach(n => titleMap[n.note_id] = n.title);
+    }
+    const rows = (orders||[]).map(o =>
+      '<tr><td><b>'+esc(titleMap[o.note_id] || ("Note #"+o.note_id))+'</b><br>' +
+      '<span style="color:var(--muted);font-size:12.5px">Buyer: '+esc(o.buyer_id||"")+' · Rs '+Number(o.amount||0).toLocaleString()+' · '+fmtDate(o.timestamp)+'</span><br>' +
+      (o.payment_proof_url ? '<a href="'+esc(o.payment_proof_url)+'" target="_blank" rel="noopener"><img src="'+esc(o.payment_proof_url)+'" style="width:120px;border-radius:8px;margin-top:8px;border:1px solid var(--line)" loading="lazy"></a><br><span style="font-size:11.5px;color:var(--muted)">click to enlarge</span>' : '<span style="color:var(--red);font-size:12.5px">no screenshot</span>') +
+      ' <span class="badge '+(o.status==="pending"?"pending":o.status==="rejected"?"rejected":"")+'">'+esc(o.status||"")+'</span></td>' +
+      '<td class="acts">' +
+      (o.status === "pending" ? '<button class="btn small" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'approved\')">✓ Verify & unlock</button> ' +
+        '<button class="btn small danger" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'rejected\')">Reject</button>' : '<span style="color:var(--muted);font-size:12.5px">done</span>') +
+      '</td></tr>').join("");
+    app.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
+      '<div class="section-title" style="margin:0">Admin panel</div>' +
+      '<div><span style="font-size:14px;color:var(--muted);margin-right:12px">👤 '+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
+      '<div class="notice">Verify each payment screenshot below — <b>Verify & unlock</b> gives the buyer access to the note.</div>' +
+      '<div class="tabs"><button onclick="adminDash(adminSession(),\'pending\')">Pending</button>' +
+      '<button onclick="adminDash(adminSession(),\'reported\')">Reported</button>' +
+      '<button onclick="adminDash(adminSession(),\'all\')">All notes</button>' +
+      '<button class="active" onclick="adminDash(adminSession(),\'orders\')">💰 Orders</button></div>' +
+      (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Order</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">No orders yet. 🎉</div>');
+  }catch(e){ app.innerHTML = '<div class="err">Could not load orders: '+esc(e.message)+'</div>'; }
+}
+async function adminOrderSet(order_id, note_id, status){
+  if(!confirm("Set this order to '"+status+"'?")) return;
+  const {error} = await db.from("orders").update({status}).eq("order_id", order_id);
+  if(error){ alert("Failed: " + error.message); return; }
+  if(status === "approved"){
+    const {data} = await db.from("notes").select("downloads").eq("note_id", note_id).limit(1);
+    if(data && data.length) await db.from("notes").update({downloads: (Number(data[0].downloads)||0)+1}).eq("note_id", note_id);
+  }
+  toast(status === "approved" ? "✅ Order approved — buyer unlocked" : "Order rejected");
+  adminDash(adminSession(), "orders");
 }
 
 /* ================= REALTIME ================= */
@@ -443,6 +558,10 @@ function initRealtime(){
     .on("postgres_changes", {event:"INSERT", schema:"public", table:"reviews"}, () => {
       toast("⭐ New review posted");
       if(currentView === "detail") VIEWS.detail(currentArg);
+    })
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"orders"}, p => {
+      toast("💰 New payment received — Rs " + Number(p.new.amount||0).toLocaleString());
+      if(currentView === "admin") adminDash(adminSession(), "orders");
     })
     .subscribe(status => { dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
 }
