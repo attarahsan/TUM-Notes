@@ -1,79 +1,78 @@
-// approve-order: admin approves/rejects a note purchase.
-// Money split (70% seller / 30% admin) happens HERE server-side — never trust client math.
+// approve-order — admin approves/rejects a note purchase.
+// Money split (70% seller / 30% admin) happens HERE server-side.
+// Auth: admin user JWT, or WA_ADMIN_SECRET (WhatsApp admin script).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const ADMIN_COMMISSION = 0.3;
+const SUPA_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const WA_SECRET = Deno.env.get("WA_ADMIN_SECRET") || "";
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
-}
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const J = (o: unknown, s = 200) =>
+  new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-async function requireAdmin(req: Request) {
-  const jwt = (req.headers.get("Authorization") || "").replace("Bearer ", "");
-  if (!jwt) throw new Error("Missing auth token");
-  const ucli = createClient(URL, ANON, { global: { headers: { Authorization: `Bearer ${jwt}` } } });
-  const { data: { user }, error } = await ucli.auth.getUser();
-  if (error || !user) throw new Error("Unauthorized");
-  const svc = createClient(URL, SERVICE);
-  const { data: row } = await svc.from("users").select("is_admin").eq("uid", user.id).single();
-  if (!row || !row.is_admin) throw new Error("Admin only");
-  return { svc, adminUid: user.id };
+async function adminUid(req: Request, body: Record<string, unknown>, supa: ReturnType<typeof createClient>) {
+  if (WA_SECRET && body.admin_secret === WA_SECRET) {
+    const { data } = await supa.from("users").select("uid").eq("is_admin", true).limit(1).single();
+    return (data?.uid as string) ?? null;
+  }
+  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return null;
+  const { data: { user } } = await supa.auth.getUser(jwt);
+  if (!user) return null;
+  const { data: row } = await supa.from("users").select("is_admin").eq("uid", user.id).single();
+  return row?.is_admin ? user.id : null;
 }
 
 serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "POST only" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { svc, adminUid } = await requireAdmin(req);
-    const { order_id, decision } = await req.json();
-    if (!order_id || (decision !== "approved" && decision !== "rejected")) {
-      return json({ error: "Bad request" }, 400);
-    }
-    const { data: o, error: oe } = await svc.from("orders").select("*").eq("order_id", order_id).single();
-    if (oe || !o) return json({ error: "Order not found" }, 404);
-    if (o.status !== "pending") return json({ error: "Order already decided" }, 400);
+    const supa = createClient(SUPA_URL, SERVICE_KEY);
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { return J({ error: "bad json" }, 400); }
+    const auid = await adminUid(req, body, supa);
+    if (!auid) return J({ error: "forbidden" }, 403);
 
-    if (decision === "rejected") {
-      await svc.from("orders").update({ status: "rejected" }).eq("order_id", order_id);
-      return json({ ok: true });
+    const { order_id, action } = body as { order_id: string; action: string };
+    const { data: o } = await supa.from("orders").select("*").eq("order_id", order_id).single();
+    if (!o) return J({ error: "order not found" }, 404);
+    if (o.status !== "pending") return J({ error: "already " + o.status }, 400);
+
+    if (action === "reject") {
+      await supa.from("orders").update({ status: "rejected" }).eq("order_id", order_id);
+      return J({ ok: true, status: "rejected" });
     }
 
-    // APPROVED — recompute amounts from the NOTE price (never trust the client-sent amount)
-    const { data: note } = await svc.from("notes").select("price").eq("note_id", o.note_id).single();
-    const amount = Math.floor(Number(note?.price ?? o.amount) || 0);
-    const commission = Math.round(amount * ADMIN_COMMISSION);
+    const amount = Number(o.amount) || 0;
+    const commission = Math.round(amount * 0.30);
     const earning = amount - commission;
 
-    await svc.from("orders").update(
-      { status: "approved", amount, commission, seller_earning: earning },
-    ).eq("order_id", order_id);
+    const { error: oErr } = await supa.from("orders")
+      .update({ status: "approved", commission, seller_earning: earning }).eq("order_id", order_id);
+    if (oErr) return J({ error: oErr.message }, 500);
 
-    // credit seller (70%)
-    const { data: srow } = await svc.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).single();
-    if (srow) {
-      await svc.from("users").update({
-        wallet: (Number(srow.wallet) || 0) + earning,
-        total_earnings: (Number(srow.total_earnings) || 0) + earning,
-      }).eq("uid", o.seller_id);
-    }
-    // credit approving admin (30% commission)
-    const { data: arow } = await svc.from("users").select("wallet,total_earnings").eq("uid", adminUid).single();
-    if (arow) {
-      await svc.from("users").update({
-        wallet: (Number(arow.wallet) || 0) + commission,
-        total_earnings: (Number(arow.total_earnings) || 0) + commission,
-      }).eq("uid", adminUid);
-    }
-    // bump download counter
-    const { data: nrow } = await svc.from("notes").select("downloads").eq("note_id", o.note_id).single();
-    if (nrow) {
-      await svc.from("notes").update({ downloads: (Number(nrow.downloads) || 0) + 1 }).eq("note_id", o.note_id);
-    }
-    return json({ ok: true, earning, commission });
+    const { data: s } = await supa.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).single();
+    if (s) await supa.from("users").update({
+      wallet: (Number(s.wallet) || 0) + earning,
+      total_earnings: (Number(s.total_earnings) || 0) + earning,
+    }).eq("uid", o.seller_id);
+
+    const { data: a } = await supa.from("users").select("wallet,total_earnings").eq("uid", auid).single();
+    if (a) await supa.from("users").update({
+      wallet: (Number(a.wallet) || 0) + commission,
+      total_earnings: (Number(a.total_earnings) || 0) + commission,
+    }).eq("uid", auid);
+
+    const { data: n } = await supa.from("notes").select("downloads").eq("note_id", o.note_id).single();
+    if (n) await supa.from("notes").update({ downloads: (Number(n.downloads) || 0) + 1 }).eq("note_id", o.note_id);
+
+    return J({ ok: true, status: "approved", commission, earning });
   } catch (e) {
-    return json({ error: (e as Error).message || "Failed" }, 500);
+    return J({ error: String((e as Error)?.message || e) }, 500);
   }
 });

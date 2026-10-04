@@ -1,4 +1,4 @@
-// decide-withdrawal — admin marks a withdrawal sent (approved) or rejects it (refunds).
+// decide-note — admin approves/rejects a pending note (moderation).
 // Auth: admin user JWT, or WA_ADMIN_SECRET (WhatsApp admin script).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -33,22 +33,15 @@ serve(async (req) => {
     try { body = await req.json(); } catch { return J({ error: "bad json" }, 400); }
     if (!(await isAdmin(req, body, supa))) return J({ error: "forbidden" }, 403);
 
-    const { request_id, action } = body as { request_id: string; action: string };
-    const { data: w } = await supa.from("withdrawals").select("*").eq("request_id", request_id).single();
-    if (!w) return J({ error: "not found" }, 404);
-    if (w.status !== "pending") return J({ error: "already " + w.status }, 400);
+    const { note_id, action } = body as { note_id: string | number; action: string };
+    const { data: n } = await supa.from("notes").select("note_id,status,title").eq("note_id", note_id).single();
+    if (!n) return J({ error: "note not found" }, 404);
+    if (n.status !== "pending") return J({ error: "already " + n.status }, 400);
 
     const status = action === "approve" ? "approved" : "rejected";
-    const { error: uErr } = await supa.from("withdrawals").update({ status }).eq("request_id", request_id);
+    const { error: uErr } = await supa.from("notes").update({ status }).eq("note_id", note_id);
     if (uErr) return J({ error: uErr.message }, 500);
-
-    if (status === "rejected") {
-      const { data: s } = await supa.from("users").select("wallet").eq("uid", w.seller_id).single();
-      if (s) await supa.from("users")
-        .update({ wallet: (Number(s.wallet) || 0) + (Number(w.amount) || 0) })
-        .eq("uid", w.seller_id);
-    }
-    return J({ ok: true, status });
+    return J({ ok: true, status, note_id });
   } catch (e) {
     return J({ error: String((e as Error)?.message || e) }, 500);
   }

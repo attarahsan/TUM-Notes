@@ -1,59 +1,55 @@
-// request-withdrawal: user requests a withdrawal.
-// Password check, balance check and wallet debit happen HERE server-side.
+// request-withdrawal — seller asks to withdraw from wallet (user JWT only)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const MIN_WITHDRAWAL = 500;
+const SUPA_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
-}
-
-async function sha256hex(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const J = (o: unknown, s = 200) =>
+  new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "POST only" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const jwt = (req.headers.get("Authorization") || "").replace("Bearer ", "");
-    if (!jwt) throw new Error("Missing auth token");
-    const ucli = createClient(URL, ANON, { global: { headers: { Authorization: `Bearer ${jwt}` } } });
-    const { data: { user }, error: ue } = await ucli.auth.getUser();
-    if (ue || !user) throw new Error("Unauthorized");
-    const uid = user.id;
-    const svc = createClient(URL, SERVICE);
+    const supa = createClient(SUPA_URL, SERVICE_KEY);
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!jwt) return J({ error: "missing auth" }, 401);
+    const { data: { user } } = await supa.auth.getUser(jwt);
+    if (!user) return J({ error: "bad token" }, 401);
 
-    const { amount, easypaisa_number, password } = await req.json();
-    const amt = Math.floor(Number(amount));
-    if (!amt || amt < MIN_WITHDRAWAL) return json({ error: `Minimum withdrawal is Rs ${MIN_WITHDRAWAL}.` }, 400);
-    if (!easypaisa_number || !password) return json({ error: "Missing fields." }, 400);
+    const { amount, easypaisa_number, withdraw_pass_hash } = await req.json();
+    const amt = Math.floor(Number(amount) || 0);
+    if (!(amt >= 500)) return J({ error: "Min withdrawal Rs 500" }, 400);
+    if (!easypaisa_number || String(easypaisa_number).length < 10)
+      return J({ error: "Easypaisa number ghalat hye" }, 400);
 
-    const { data: urow } = await svc.from("users").select("wallet,withdraw_pass_hash,name").eq("uid", uid).single();
-    if (!urow) return json({ error: "Account nahi mila" }, 404);
-    if (!urow.withdraw_pass_hash) return json({ error: "Withdrawal password set nahi hye." }, 400);
-    const hash = await sha256hex("tum-withdraw::" + password);
-    if (hash !== urow.withdraw_pass_hash) return json({ error: "❌ Ghalat withdrawal password." }, 403);
+    const { data: u } = await supa.from("users").select("wallet,withdraw_pass_hash,name").eq("uid", user.id).single();
+    if (!u) return J({ error: "user not found" }, 404);
+    if (!u.withdraw_pass_hash) return J({ error: "set password first" }, 400);
+    if (u.withdraw_pass_hash !== withdraw_pass_hash) return J({ error: "wrong password" }, 403);
+    if ((Number(u.wallet) || 0) < amt) return J({ error: "Insufficient balance" }, 400);
 
-    const bal = Number(urow.wallet) || 0;
-    if (amt > bal) return json({ error: `Insufficient balance. Available: Rs ${bal.toLocaleString()}` }, 400);
+    const newBal = (Number(u.wallet) || 0) - amt;
+    const { error: wErr } = await supa.from("users").update({ wallet: newBal }).eq("uid", user.id);
+    if (wErr) return J({ error: wErr.message }, 500);
 
-    await svc.from("users").update({ wallet: bal - amt, easypaisa_number }).eq("uid", uid);
-    const { error: ie } = await svc.from("withdrawals").insert({
-      seller_id: uid,
-      seller_name: urow.name,
-      amount: amt,
-      easypaisa_number,
-      status: "pending",
-      timestamp: Date.now(),
-    });
-    if (ie) throw ie;
-    return json({ ok: true });
+    // request_id is an auto-increment integer — let the DB assign it; timestamp is bigint millis
+    const { data: wd, error: iErr } = await supa.from("withdrawals").insert({
+      seller_id: user.id, seller_name: u.name || "", amount: amt, easypaisa_number,
+      status: "pending", timestamp: Date.now(),
+    }).select("request_id").single();
+    if (iErr) {
+      // refund on insert failure (no partial debit)
+      await supa.from("users").update({ wallet: Number(u.wallet) || 0 }).eq("uid", user.id);
+      return J({ error: iErr.message }, 500);
+    }
+    return J({ ok: true, request_id: wd.request_id, new_balance: newBal });
   } catch (e) {
-    return json({ error: (e as Error).message || "Failed" }, 500);
+    return J({ error: String((e as Error)?.message || e) }, 500);
   }
 });
