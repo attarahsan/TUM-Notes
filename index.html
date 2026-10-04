@@ -115,29 +115,39 @@ footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;ga
 #splash{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer;
   background:radial-gradient(1100px 550px at 50% 18%,#3730a3 0%,#191736 55%,#0e0d1f 100%);transition:opacity .6s}
 #splash.hide{opacity:0;pointer-events:none}
-.sp-inner{text-align:center;padding:20px}
-.sp-kicker{color:#a5b4fc;font-size:12px;font-weight:800;letter-spacing:6px;margin-bottom:18px;opacity:0;animation:fadeup .8s .1s forwards}
+.sp-inner{text-align:center;padding:20px;max-width:660px;width:100%}
+.sp-stage{animation:stagein .55s ease both}
+@keyframes stagein{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+.sp-kicker{color:#a5b4fc;font-size:12px;font-weight:800;letter-spacing:6px;margin-bottom:18px}
 .sp-brand{font-size:clamp(30px,6.4vw,62px);font-weight:900;letter-spacing:7px;white-space:nowrap;
   background:linear-gradient(90deg,#c7d2fe,#f0abfc,#fde68a,#c7d2fe);background-size:250% auto;
   -webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 3.2s linear infinite}
 .sp-brand span{display:inline-block;animation:flutter 2.4s ease-in-out infinite}
 @keyframes flow{to{background-position:250% center}}
 @keyframes flutter{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-11px) rotate(2.5deg)}}
-.sp-by{color:#e0e7ff;margin-top:16px;font-size:clamp(15px,2.6vw,21px);opacity:0;animation:fadeup .8s .55s forwards}
+.sp-brand2{font-size:clamp(34px,7vw,68px);font-weight:900;letter-spacing:4px;white-space:nowrap;
+  background:linear-gradient(90deg,#fde68a,#f0abfc,#c7d2fe,#fde68a);background-size:250% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 3.2s linear infinite}
+.sp-by{color:#e0e7ff;margin-top:16px;font-size:clamp(15px,2.6vw,21px)}
 .sp-by b{color:#fde68a}
-.sp-tag{color:#8b93b8;margin-top:10px;font-size:12.5px;letter-spacing:3px;opacity:0;animation:fadeup .8s 1s forwards}
-.sp-skip{color:#5b6390;margin-top:26px;font-size:12px;opacity:0;animation:fadeup .8s 1.4s forwards}
-@keyframes fadeup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.sp-tag{color:#8b93b8;margin-top:10px;font-size:12.5px;letter-spacing:3px}
+.sp-feats{display:flex;flex-direction:column;gap:14px;margin:26px auto 0;max-width:430px;text-align:left}
+.sp-feat{display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:13px 16px}
+.sp-feat .ic{font-size:24px;flex:0 0 auto}
+.sp-feat .tx{color:#e0e7ff;font-size:14.5px;line-height:1.5}
+.sp-feat .tx b{color:#fde68a}
+.sp-dots{display:flex;gap:8px;justify-content:center;margin-top:30px}
+.sp-dots i{width:8px;height:8px;border-radius:50%;background:#3b4270;transition:all .3s}
+.sp-dots i.on{background:#fde68a;transform:scale(1.35)}
+.sp-skip{color:#5b6390;margin-top:22px;font-size:12px}
 </style>
 </head>
 <body>
-<div id="splash" onclick="hideSplash()">
+<div id="splash" onclick="skipSplash()">
   <div class="sp-inner">
-    <div class="sp-kicker">PRESENTS</div>
-    <div class="sp-brand">SUHRANI DEVELOPERS</div>
-    <div class="sp-by">crafted with passion by <b>Ahsan Abid</b></div>
-    <div class="sp-tag">BUILDING DIGITAL EXPERIENCES FOR STUDENTS</div>
-    <div class="sp-skip">tap anywhere to continue</div>
+    <div id="spStage"></div>
+    <div class="sp-dots" id="spDots"></div>
+    <div class="sp-skip">tap anywhere to skip</div>
   </div>
 </div>
 <header class="site">
@@ -213,12 +223,12 @@ async function refreshWallet(){
     if(data && data.length){
       const r = data[0];
       if(r.plan && r.plan !== "free" && r.plan_expires && Number(r.plan_expires) < Date.now()){
-        await db.from("users").update({plan:"free", note_limit:50, plan_expires:0}).eq("uid", u.uid);
-        r.plan = "free"; r.note_limit = 50; r.plan_expires = 0;
+        await db.from("users").update({plan:"free", note_limit:25, plan_expires:0}).eq("uid", u.uid);
+        r.plan = "free"; r.note_limit = 25; r.plan_expires = 0;
         toast("Your subscription expired — back to Free plan");
       }
       u.wallet = r.wallet; u.total_earnings = r.total_earnings;
-      u.plan = r.plan || "free"; u.note_limit = r.note_limit || 50; u.plan_expires = r.plan_expires || 0;
+      u.plan = r.plan || "free"; u.note_limit = r.note_limit || 25; u.plan_expires = r.plan_expires || 0;
       localStorage.setItem("tum_user", JSON.stringify(u));
       const wb = document.getElementById("walletBtn");
       if(wb) wb.textContent = "Wallet · Rs " + Number(u.wallet||0).toLocaleString();
@@ -244,29 +254,86 @@ async function googleLogin(){
     if(error) throw error;
   }catch(e){ if(msg) msg.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
-async function handleGoogleSession(){
+let _gsync = false;
+function showAuthBanner(msg){
+  let b = document.getElementById("authBanner");
+  if(!b){
+    b = document.createElement("div");
+    b.id = "authBanner";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:1000;background:#7f1d1d;color:#fff;padding:10px 14px;font-size:13.5px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.3)";
+    b.innerHTML = '<span id="authBannerMsg" style="flex:1;text-align:center;line-height:1.5"></span><button onclick="this.parentNode.remove()" style="background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px">✕</button>';
+    document.body.prepend(b);
+  }
+  const m = document.getElementById("authBannerMsg");
+  if(m) m.textContent = msg;
+  b.style.display = "flex";
+}
+function cleanAuthParams(){
   try{
-    const {data: sess} = await db.auth.getSession();
+    const u = new URL(location.href);
+    u.searchParams.delete("code"); u.searchParams.delete("error"); u.searchParams.delete("error_description"); u.searchParams.delete("error_code");
+    history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash);
+  }catch(e){}
+}
+async function handleGoogleSession(){
+  if(_gsync) return;
+  _gsync = true;
+  try{
+    const q = new URLSearchParams(location.search);
+    const cbErr = q.get("error");
+    if(cbErr){
+      const msg = "Google login failed: " + ((q.get("error_description") || cbErr).replace(/\+/g, " "));
+      cleanAuthParams();
+      toast(msg); showAuthBanner(msg); console.error(msg);
+      return;
+    }
+    const code = q.get("code");
+    let codeErr = null;
+    if(code){
+      // Explicit PKCE code exchange — do not rely only on auto-detect
+      try{
+        const res = await db.auth.exchangeCodeForSession(code);
+        if(res && res.error) codeErr = res.error;
+      }catch(e){ codeErr = e; }
+      cleanAuthParams();
+    }
+    const {data: sess, error: sessErr} = await db.auth.getSession();
+    if(sessErr) throw sessErr;
     const session = sess && sess.session;
-    if(!session || !session.user) return;
+    if(!session || !session.user){
+      if(code){
+        const msg = "Login failed: Google se wapas to aaye lekin session nahi ban saka" + (codeErr ? " (" + (codeErr.message || codeErr) + ")" : "") + ". Dobara try karein.";
+        toast(msg); showAuthBanner(msg); console.error(msg, codeErr);
+      }
+      return;
+    }
     const au = session.user;
     const email = (au.email || "").toLowerCase();
-    if(!email) return;
+    if(!email) throw new Error("Google account has no email address");
     const meta = au.user_metadata || {};
     const name = meta.full_name || meta.name || email.split("@")[0];
-    const {data: rows} = await db.from("users").select("*").eq("email", email).limit(1);
+    const {data: rows, error: selErr} = await db.from("users").select("*").eq("email", email).limit(1);
+    if(selErr) throw selErr;
     let urow;
     if(rows && rows.length){
       urow = rows[0];
     }else{
-      const {data: ins, error} = await db.from("users").insert({uid: au.id, name: name, email: email, role: "user", is_admin: false, wallet: 30, total_earnings: 0, plan: "free", note_limit: 50, plan_expires: 0, created_at: Date.now()}).select();
+      const {data: ins, error} = await db.from("users").insert({uid: au.id, name: name, email: email, role: "user", is_admin: false, wallet: 30, total_earnings: 0, plan: "free", note_limit: 25, plan_expires: 0, created_at: Date.now()}).select();
       if(error) throw error;
       urow = ins[0];
       setTimeout(function(){ toast("🎉 Account created — Rs 30 welcome bonus added!"); }, 900);
     }
     setSession({uid: urow.uid, name: urow.name, email: urow.email, is_admin: urow.is_admin});
     await refreshWallet();
-  }catch(e){ console.warn("session sync failed:", e); }
+    if(code) toast("✅ Logged in as " + (urow.name || email));
+  }catch(e){
+    const msg = "Login failed: " + (e.message || e);
+    console.error(msg, e);
+    toast(msg);
+    showAuthBanner(msg);
+  }finally{
+    _gsync = false;
+  }
 }
 /* ================= FILTER STATE ================= */
 const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"},
@@ -527,7 +594,7 @@ async function sellPlanLimit(){
   await refreshWallet();
   const me = currentUser();
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", me.uid);
-  const limit = me.note_limit || 50;
+  const limit = me.note_limit || 25;
   return {used: count || 0, limit: limit, plan: me.plan || "free", full: (count || 0) >= limit};
 }
 function limitNotice(lim){
@@ -597,7 +664,7 @@ async function submitImgNote(ev){
   if(files.length > 50){ msg.innerHTML = '<div class="notice warn">Maximum 50 photos per note.</div>'; return; }
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
   const {data: urow} = await db.from("users").select("note_limit").eq("uid", u.uid).limit(1);
-  const limit = (urow && urow[0] && urow[0].note_limit) || 50;
+  const limit = (urow && urow[0] && urow[0].note_limit) || 25;
   if((count || 0) >= limit){ msg.innerHTML = '<div class="err">Plan limit reached (' + planLimitTxt(limit) + ' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
   const price = files.length * 2;
   try{
@@ -630,7 +697,7 @@ async function submitNote(ev){
   const msg = document.getElementById("sell_msg");
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
   const {data: urow} = await db.from("users").select("note_limit,plan").eq("uid", u.uid).limit(1);
-  const limit = (urow && urow[0] && urow[0].note_limit) || 50;
+  const limit = (urow && urow[0] && urow[0].note_limit) || 25;
   if((count||0) >= limit){ msg.innerHTML = '<div class="err">Plan limit reached ('+planLimitTxt(limit)+' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
   const fileInput = document.getElementById("s_file");
   const coverInput = document.getElementById("s_cover");
@@ -708,7 +775,7 @@ async function submitWithdraw(ev){
 }
 /* ================= SUBSCRIPTION PLANS ================= */
 const PLANS = {
-  free:     {name:"Free",     notes:50,      price:0,   per:"forever", features:["50 notes upload limit","Sell & earn 70% per sale","Free forever"]},
+  free:     {name:"Free",     notes:25,      price:0,   per:"forever", features:["25 notes upload limit","Sell & earn 70% per sale","Free forever"]},
   pro:      {name:"Pro",      notes:300,     price:499, per:"/month",  features:["300 notes upload limit","Priority placement in browse","30 days validity"]},
   business: {name:"Business", notes:1000000, price:999, per:"/month",  features:["Unlimited notes","Top placement in browse","30 days validity"]}
 };
@@ -998,13 +1065,37 @@ function initRealtime(){
     .subscribe(function(status){ dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
 }
 
+/* ================= STAGED INTRO ================= */
+const SP_STAGES = [
+ '<div class="sp-stage"><div class="sp-kicker">PRESENTS</div><div class="sp-brand">SUHRANI DEVELOPERS</div><div class="sp-by">crafted with passion by <b>Ahsan Abid</b></div></div>',
+ '<div class="sp-stage"><div class="sp-kicker">TIMES UNIVERSITY MULTAN</div><div class="sp-brand2">TUM NOTES HUB</div><div class="sp-by">Students ka apna <b>notes marketplace</b></div><div class="sp-tag">BUY &middot; SELL &middot; EARN</div></div>',
+ '<div class="sp-stage"><div class="sp-kicker">WHAT YOU CAN DO</div><div class="sp-feats">' +
+ '<div class="sp-feat"><div class="ic">📚</div><div class="tx"><b>Buy &amp; sell</b> PDF notes and handwritten photo galleries</div></div>' +
+ '<div class="sp-feat"><div class="ic">💰</div><div class="tx">Sellers keep <b>70% of every sale</b> &mdash; straight to wallet</div></div>' +
+ '<div class="sp-feat"><div class="ic">🔐</div><div class="tx"><b>Secure Google login</b> &mdash; your data stays with you</div></div>' +
+ '</div></div>'
+];
+let spIdx = -1, spTimer = null;
+function spFlutter(){ const b = document.querySelector("#spStage .sp-brand"); if(!b || b.dataset.fl) return; b.dataset.fl = "1"; const t = b.textContent; b.innerHTML = [...t].map(function(c,i){ return '<span style="animation-delay:'+(i*0.055).toFixed(2)+'s">'+(c===" "?"&nbsp;":esc(c))+"</span>"; }).join(""); }
+function spShow(i){
+  spIdx = i;
+  const st = document.getElementById("spStage"); if(!st) return;
+  st.innerHTML = SP_STAGES[i];
+  spFlutter();
+  const d = document.getElementById("spDots");
+  if(d) d.innerHTML = SP_STAGES.map(function(_,j){ return '<i class="'+(j===i?"on":"")+'"></i>'; }).join("");
+}
+function runSplash(){
+  spShow(0);
+  if(spTimer) clearInterval(spTimer);
+  spTimer = setInterval(function(){
+    if(spIdx >= SP_STAGES.length - 1){ clearInterval(spTimer); spTimer = null; hideSplash(); }
+    else spShow(spIdx + 1);
+  }, 2600);
+}
+function skipSplash(){ if(spTimer){ clearInterval(spTimer); spTimer = null; } hideSplash(); }
 /* ================= BOOT ================= */
-(function(){
-  const b = document.querySelector(".sp-brand");
-  if(b){ const t = b.textContent; b.setAttribute("aria-label", t);
-    b.innerHTML = [...t].map(function(c,i){ return '<span style="animation-delay:'+(i*0.055).toFixed(2)+'s">'+(c===" "?"&nbsp;":esc(c))+"</span>"; }).join(""); }
-  setTimeout(hideSplash, 3400);
-})();
+(function(){ runSplash(); })();
 function hideSplash(){ const s = document.getElementById("splash"); if(!s || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(function(){ s.remove(); }, 700); }
 updateUserBox();
 subscribeWallet();
