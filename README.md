@@ -1,28 +1,42 @@
 # TUM Notes Hub — Website
 
-Public website for the TUM Notes Hub study-notes marketplace (Times University Multan).
-Single-file static site (`index.html`) connected live to Supabase.
+Professional, realtime student marketplace for study notes (Times University Multan).
+Single-file static site (`index.html`) connected live to Supabase, with Supabase
+Realtime subscriptions — new notes, approvals and reviews appear instantly with
+toast notifications and a "Live" indicator in the header.
+
+## Deploy on Netlify (free)
+
+**Option A — drag & drop (fastest, no GitHub needed):**
+1. Go to https://app.netlify.com/drop
+2. Drag this whole folder onto the page
+3. Done — you get a live URL like `https://tum-notes-hub.netlify.app`
+4. Change the site name: Site settings → Change site name
+
+**Option B — from GitHub (auto-deploys on every push):**
+1. Netlify → Add new site → Import an existing project → GitHub
+2. Select the `TUM-Notes` repository
+3. Build settings: no build command, publish directory `.` (already in `netlify.toml`)
+4. Deploy — every `git push` redeploys automatically
+
+**Custom domain:** Site settings → Domain management → Add custom domain,
+then point your domain's DNS to Netlify (they show the exact records).
+
+## Enable Realtime in Supabase (one-time)
+In Supabase dashboard → SQL Editor, run:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notes, public.reviews;
+```
+
+## Features
+- Home: live stats, search, departments, top-rated + fresh uploads
+- Browse: Free/Paid, department, subject, semester, max-price filters + 4 sort orders (saved)
+- Note detail: ratings, downloads, reviews, review form, file link
+- Sell: submissions go to admin as `pending`
+- Admin panel: email+password login for `is_admin` users; Pending / Reported / All tabs
 
 ## Run locally
-Just open `index.html` in a browser, or serve it:
 ```
 python3 -m http.server 8000
 ```
-then open http://localhost:8000
-
-## Deploy (free)
-- **Netlify:** drag & drop the folder at app.netlify.com/drop → then add your custom domain
-- **Vercel:** `vercel` in this folder
-- Any static host works (GitHub Pages, Cloudflare Pages, …)
-
-## Features
-- Home with search + featured notes
-- Browse with filters (Free/Paid, department, subject, semester, max price) + sorting
-- Note detail with star ratings, reviews, review form
-- Sell form (submissions go to admin as `pending`)
-- Admin panel (`Admin` in nav): email+password login for `is_admin` users,
-  pending approvals, reported notes, all-notes management
-
-## Backend
-Supabase project `tum-notes-hub` (anon key embedded is the publishable key —
-safe for client-side use; data access is governed by the table RLS policies).
+→ http://localhost:8000

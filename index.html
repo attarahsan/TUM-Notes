@@ -4,90 +4,118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TUM Notes Hub — Buy & Sell Study Notes</title>
+<meta name="description" content="The student marketplace for study notes at Times University Multan. Buy and sell quality notes, organized by department and subject.">
 <style>
 :root{
-  --bg:#f6f7fb; --card:#ffffff; --ink:#1a1d29; --muted:#6b7280;
-  --brand:#4f46e5; --brand-d:#4338ca; --green:#16a34a; --red:#dc2626;
-  --amber:#d97706; --line:#e5e7eb; --radius:14px;
+  --bg:#f4f5fa; --card:#ffffff; --ink:#141726; --muted:#69708a;
+  --brand:#4f46e5; --brand-d:#3f37c9; --brand-soft:#eef0ff;
+  --green:#16a34a; --green-soft:#e8f7ee; --red:#dc2626; --red-soft:#fdecec;
+  --amber:#b45309; --amber-soft:#fef4e2; --line:#e6e8f0;
+  --shadow:0 2px 10px rgba(20,23,38,.06); --shadow-lg:0 14px 34px rgba(79,70,229,.14);
+  --radius:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
-header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
-.nav{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 18px}
-.logo{font-weight:800;font-size:20px;color:var(--brand);cursor:pointer;white-space:nowrap}
-.logo span{color:var(--ink)}
-.nav-links{display:flex;gap:4px;margin-left:auto}
-.nav-links button{background:none;border:none;padding:9px 14px;border-radius:9px;font-size:15px;cursor:pointer;color:var(--ink);font-weight:600}
-.nav-links button:hover{background:#eef0ff}
+body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+header.site{background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
+.nav{max-width:1140px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:13px 20px}
+.logo{font-weight:900;font-size:21px;color:var(--brand);cursor:pointer;letter-spacing:-.4px;white-space:nowrap}
+.logo small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:2.5px}
+.nav-links{display:flex;gap:4px;margin-left:auto;align-items:center}
+.nav-links button{background:none;border:none;padding:9px 15px;border-radius:10px;font-size:14.5px;cursor:pointer;color:var(--ink);font-weight:600;font-family:inherit}
+.nav-links button:hover{background:var(--brand-soft)}
 .nav-links button.active{background:var(--brand);color:#fff}
-main{max-width:1100px;margin:0 auto;padding:22px 18px 60px}
-.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:18px;padding:38px 30px;margin-bottom:26px}
-.hero h1{font-size:30px;margin-bottom:8px}
-.hero p{opacity:.9;margin-bottom:18px}
-.searchbar{display:flex;gap:8px;max-width:520px}
-.searchbar input{flex:1;padding:13px 16px;border:none;border-radius:11px;font-size:15px;outline:none}
-.searchbar button{background:#1a1d29;color:#fff;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:700;cursor:pointer}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
-.chip{background:var(--card);border:1px solid var(--line);padding:8px 15px;border-radius:999px;font-size:14px;cursor:pointer;font-weight:600}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--green)}
+.live-dot i{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+main{max-width:1140px;margin:0 auto;padding:24px 20px 70px}
+.hero{background:linear-gradient(120deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);color:#fff;border-radius:22px;padding:52px 40px;margin-bottom:30px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-70px;top:-70px;width:280px;height:280px;border-radius:50%;background:rgba(255,255,255,.09)}
+.hero h1{font-size:34px;letter-spacing:-.6px;margin-bottom:10px;position:relative;z-index:1}
+.hero p{opacity:.92;margin-bottom:22px;font-size:16px;position:relative;z-index:1}
+.searchbar{display:flex;gap:8px;max-width:560px;position:relative;z-index:1}
+.searchbar input{flex:1;padding:14px 18px;border:none;border-radius:12px;font-size:15px;outline:none;box-shadow:var(--shadow-lg)}
+.searchbar button{background:#141726;color:#fff;border:none;border-radius:12px;padding:0 26px;font-size:15px;font-weight:700;cursor:pointer}
+.stats{display:flex;gap:26px;margin-top:24px;position:relative;z-index:1}
+.stats div b{font-size:22px;display:block}
+.stats div span{font-size:12.5px;opacity:.85}
+.chips{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0 20px}
+.chip{background:var(--card);border:1px solid var(--line);padding:9px 17px;border-radius:999px;font-size:14px;cursor:pointer;font-weight:600;box-shadow:var(--shadow);transition:.15s}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
 .chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-.section-title{font-size:21px;font-weight:800;margin:26px 0 14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;cursor:pointer;transition:transform .12s,box-shadow .12s}
-.card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08)}
-.card h3{font-size:16px;margin-bottom:6px;line-height:1.35}
-.card .meta{font-size:13px;color:var(--muted);margin-bottom:10px}
-.card .row{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin:30px 0 16px}
+.section-title{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.section-link{font-size:14px;color:var(--brand);font-weight:700;cursor:pointer;background:none;border:none;font-family:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;cursor:pointer;transition:transform .14s,box-shadow .14s;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.card h3{font-size:16.5px;margin-bottom:7px;line-height:1.4;letter-spacing:-.2px}
+.card .meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.card .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)}
 .price{font-weight:800;font-size:17px;color:var(--brand)}
 .price.free{color:var(--green)}
-.stars{color:#f59e0b;font-size:14px;letter-spacing:1px}
-.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#eef0ff;color:var(--brand);margin-left:6px}
-.badge.pending{background:#fef3c7;color:var(--amber)}
-.badge.rejected{background:#fee2e2;color:var(--red)}
-.filters{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;position:sticky;top:66px;z-index:40}
-.filters .frow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.stars{color:#f59e0b;font-size:14px;letter-spacing:2px}
+.rcount{font-size:12px;color:var(--muted)}
+.sellerline{font-size:12.5px;color:var(--muted);margin-top:8px}
+.badge{display:inline-block;font-size:11px;font-weight:800;padding:3px 11px;border-radius:999px;background:var(--brand-soft);color:var(--brand);margin-left:7px;vertical-align:middle}
+.badge.pending{background:var(--amber-soft);color:var(--amber)}
+.badge.rejected{background:var(--red-soft);color:var(--red)}
+.filters{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:20px;box-shadow:var(--shadow);position:sticky;top:67px;z-index:40}
+.filters .frow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
 .filters .frow:last-child{margin-bottom:0}
-.filters select,.filters input[type=text]{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff}
-.filters label{font-size:13px;font-weight:700;color:var(--muted)}
-.detail{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px}
-.detail h1{font-size:26px;margin-bottom:8px}
-.detail .meta{color:var(--muted);font-size:14px;margin-bottom:16px}
-.detail .desc{background:var(--bg);border-radius:12px;padding:16px;font-size:15px;line-height:1.6;margin:16px 0;white-space:pre-wrap}
-.btn{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer}
+.filters select,.filters input[type=text]{padding:10px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:#fff;font-family:inherit}
+.filters label{font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:var(--shadow)}
+.detail h1{font-size:27px;margin-bottom:9px;letter-spacing:-.5px}
+.detail .meta{color:var(--muted);font-size:14px;margin-bottom:18px}
+.detail .topline{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.detail .desc{background:var(--bg);border-radius:13px;padding:18px;font-size:15px;line-height:1.65;margin:18px 0;white-space:pre-wrap}
+.btn{background:var(--brand);color:#fff;border:none;border-radius:11px;padding:13px 26px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
 .btn:hover{background:var(--brand-d)}
-.btn.ghost{background:#eef0ff;color:var(--brand)}
+.btn.ghost{background:var(--brand-soft);color:var(--brand)}
 .btn.danger{background:var(--red)}
-.btn.small{padding:7px 14px;font-size:13px}
-.back{background:none;border:none;color:var(--brand);font-weight:700;font-size:14px;cursor:pointer;margin-bottom:14px}
-.review{border-top:1px solid var(--line);padding:14px 0}
-.review .who{font-weight:700;font-size:14px}
-.review .txt{font-size:14px;margin-top:6px;line-height:1.5}
-form.fcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;max-width:640px}
-form.fcard h2{margin-bottom:18px}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--muted)}
-.field input,.field select,.field textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:15px;font-family:inherit}
-.field textarea{min-height:90px;resize:vertical}
-.frow2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.notice{background:#eef0ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:12px 15px;font-size:14px;margin-bottom:16px}
-.notice.warn{background:#fef3c7;border-color:#fcd34d;color:#92400e}
-.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
-.tabs button{background:var(--card);border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+.btn.small{padding:8px 15px;font-size:13px;border-radius:9px}
+.back{background:none;border:none;color:var(--brand);font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit}
+.review{border-top:1px solid var(--line);padding:15px 0}
+.review .who{font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center}
+.review .txt{font-size:14.5px;margin-top:7px;line-height:1.55;color:#333a4d}
+form.fcard{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:32px;max-width:660px;box-shadow:var(--shadow)}
+form.fcard h2{margin-bottom:8px;letter-spacing:-.4px}
+form.fcard .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:11px;font-size:15px;font-family:inherit;background:#fff}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+.field textarea{min-height:96px;resize:vertical}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.notice{background:var(--brand-soft);border:1px solid #c9d2fd;color:#3730a3;border-radius:11px;padding:13px 16px;font-size:14px;margin-bottom:16px;line-height:1.5}
+.notice.warn{background:var(--amber-soft);border-color:#f3d38b;color:#92400e}
+.notice.ok{background:var(--green-soft);border-color:#a9dfc0;color:#166534}
+.tabs{display:flex;gap:7px;margin-bottom:20px;flex-wrap:wrap}
+.tabs button{background:var(--card);border:1px solid var(--line);padding:11px 20px;border-radius:11px;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit;box-shadow:var(--shadow)}
 .tabs button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-table.admin{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;font-size:14px}
-table.admin th,table.admin td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
-table.admin th{background:#f3f4f6;font-size:12px;text-transform:uppercase;color:var(--muted)}
-.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px}
-.loading{text-align:center;color:var(--muted);padding:50px;font-size:15px}
-.err{background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px 15px;margin-bottom:14px;font-size:14px}
-footer{text-align:center;color:var(--muted);font-size:13px;padding:26px}
-@media(max-width:640px){.frow2{grid-template-columns:1fr}.hero h1{font-size:24px}.nav{flex-wrap:wrap}}
+table.admin{width:100%;border-collapse:collapse;background:var(--card);border-radius:14px;overflow:hidden;font-size:14px;box-shadow:var(--shadow)}
+table.admin th,table.admin td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+table.admin th{background:#f3f4f8;font-size:11.5px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+table.admin td .acts{white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:56px 20px;font-size:15px}
+.loading{text-align:center;color:var(--muted);padding:56px;font-size:15px}
+.err{background:var(--red-soft);color:#991b1b;border-radius:11px;padding:13px 16px;margin-bottom:15px;font-size:14px}
+#toasts{position:fixed;bottom:22px;right:22px;z-index:200;display:flex;flex-direction:column;gap:10px}
+.toast{background:#141726;color:#fff;padding:14px 19px;border-radius:13px;font-size:14px;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,.25);animation:slidein .25s ease;max-width:330px}
+@keyframes slidein{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.skel{background:linear-gradient(90deg,#eceef4 25%,#f7f8fc 50%,#eceef4 75%);background-size:200% 100%;animation:sk 1.3s infinite;border-radius:var(--radius);height:190px}
+@keyframes sk{to{background-position:-200% 0}}
+footer.site{border-top:1px solid var(--line);background:var(--card);margin-top:20px}
+footer.site .in{max-width:1140px;margin:0 auto;padding:30px 20px;display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:13.5px}
+@media(max-width:640px){.frow2{grid-template-columns:1fr}.hero{padding:36px 24px}.hero h1{font-size:25px}.nav{flex-wrap:wrap}.stats{gap:16px}}
 </style>
 </head>
 <body>
-<header>
+<header class="site">
   <div class="nav">
-    <div class="logo" onclick="go('home')">TUM <span>Notes Hub</span></div>
+    <div class="logo" onclick="go('home')">TUM Notes Hub<small>TIMES UNIVERSITY MULTAN</small></div>
     <div class="nav-links">
+      <span class="live-dot" id="liveDot" title="Realtime connection"><i></i>Live</span>
       <button data-nav="home" onclick="go('home')">Home</button>
       <button data-nav="browse" onclick="go('browse')">Browse</button>
       <button data-nav="sell" onclick="go('sell')">Sell</button>
@@ -96,116 +124,121 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:26px}
   </div>
 </header>
 <main id="app"><div class="loading">Loading…</div></main>
-<footer>TUM Notes Hub — Times University Multan · study notes marketplace</footer>
+<div id="toasts"></div>
+<footer class="site"><div class="in">
+  <div><b style="color:var(--ink)">TUM Notes Hub</b> — the student marketplace for study notes.</div>
+  <div>Times University Multan · Built for students, by students</div>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-/* ============ CONFIG ============ */
+/* ================= CONFIG ================= */
 const SUPABASE_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function sb(path, opts){
-  opts = opts || {};
-  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, Object.assign({}, opts, {
-    headers: Object.assign({apikey: SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json"}, opts.headers || {})
-  }));
-  if(!res.ok){ throw new Error("Supabase error " + res.status + ": " + (await res.text()).slice(0,200)); }
-  const t = await res.text();
-  return t ? JSON.parse(t) : null;
-}
+/* ================= HELPERS ================= */
+const app = document.getElementById("app");
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
 function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
-function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p+'</span>'; }
+function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p.toLocaleString()+'</span>'; }
+function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4200); }
+function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
+function go(view, arg){ setNav(view); currentView = view; currentArg = arg; VIEWS[view](arg); window.scrollTo(0,0); }
+let currentView = "home", currentArg = null;
 
-/* ============ STATE ============ */
-const F = JSON.parse(localStorage.getItem("tum_filters") || "{}");
-const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"}, F);
+/* ================= FILTER STATE ================= */
+const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"},
+  JSON.parse(localStorage.getItem("tum_filters") || "{}"));
 function saveFilters(){ localStorage.setItem("tum_filters", JSON.stringify(filters)); }
 let DEPARTMENTS = [];
 
-/* ============ ROUTER ============ */
-const app = document.getElementById("app");
-function setNav(name){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === name)); }
-function go(view, arg){ setNav(view); ({home:viewHome, browse:viewBrowse, detail:viewDetail, sell:viewSell, admin:viewAdmin}[view])(arg); window.scrollTo(0,0); }
-
-/* ============ VIEWS ============ */
-async function viewHome(){
-  app.innerHTML = '<div class="loading">Loading notes…</div>';
-  try{
-    const notes = await sb("notes?select=*&status=eq.approved&order=created_at.desc&limit=60");
-    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))];
-    const feat = [...notes].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
-    app.innerHTML =
-      '<div class="hero"><h1>Find notes. Ace exams.</h1><p>Buy & sell quality study notes from TUM students.</p>' +
-      '<div class="searchbar"><input id="hq" placeholder="Search anything here" value="'+esc(filters.q)+'">' +
-      '<button onclick="doSearch()">Search</button></div></div>' +
-      '<div class="section-title">Browse by department</div><div class="chips">' +
-      '<div class="chip" onclick="deptGo(\'\')">All</div>' +
-      DEPARTMENTS.map(d=>'<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>').join("") + '</div>' +
-      '<div class="section-title">Featured notes</div>' +
-      '<div class="grid">' + feat.map(noteCard).join("") + '</div>' +
-      (notes.length === 0 ? '<div class="empty">No approved notes yet. Be the first to <a href="#" onclick="go(\'sell\');return false;">sell a note</a>!</div>' : '');
-    document.getElementById("hq").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
-  }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
+/* ================= DATA ================= */
+async function approvedNotes(limit){
+  let q = db.from("notes").select("*").eq("status","approved").order("created_at",{ascending:false});
+  if(limit) q = q.limit(limit);
+  const {data, error} = await q;
+  if(error) throw error;
+  return data || [];
 }
-function doSearch(){ filters.q = document.getElementById("hq").value.trim(); saveFilters(); go("browse"); }
-function deptGo(d){ filters.dept = d; filters.q=""; saveFilters(); go("browse"); }
-
 function noteCard(n){
   return '<div class="card" onclick="go(\'detail\','+n.note_id+')">' +
     '<h3>'+esc(n.title || "Untitled note")+'</h3>' +
     '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester ? ' · Sem '+n.semester : '')+'</div>' +
-    '<div>'+starStr(n.rating)+' <span style="font-size:12px;color:var(--muted)">('+(n.review_count||0)+')</span></div>' +
-    '<div class="row">'+priceStr(n.price)+'<span style="font-size:12px;color:var(--muted)">'+esc(n.seller_name||"")+'</span></div></div>';
+    '<div>'+starStr(n.rating)+' <span class="rcount">'+(Number(n.rating)||0).toFixed(1)+' ('+(n.review_count||0)+')</span></div>' +
+    '<div class="foot">'+priceStr(n.price)+'<span class="sellerline">'+esc(n.seller_name||"")+'</span></div></div>';
 }
 
-async function viewBrowse(){
-  app.innerHTML = '<div class="loading">Loading notes…</div>';
+/* ================= VIEWS ================= */
+const VIEWS = {};
+VIEWS.home = async function(){
+  app.innerHTML = '<div class="grid">' + '<div class="skel"></div>'.repeat(4) + '</div>';
   try{
-    const notes = await sb("notes?select=*&status=eq.approved&order=created_at.desc&limit=200");
-    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))];
+    const notes = await approvedNotes(80);
+    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))].sort();
+    const free = notes.filter(n => Number(n.price) === 0).length;
+    const feat = [...notes].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
+    const latest = notes.slice(0,8);
+    app.innerHTML =
+      '<div class="hero"><h1>Find notes. Ace exams.</h1><p>Buy &amp; sell quality study notes from TUM students — live marketplace.</p>' +
+      '<div class="searchbar"><input id="hq" placeholder="Search anything here…" value="'+esc(filters.q)+'">' +
+      '<button onclick="doSearch()">Search</button></div>' +
+      '<div class="stats"><div><b>'+notes.length+'</b><span>approved notes</span></div>' +
+      '<div><b>'+free+'</b><span>free notes</span></div>' +
+      '<div><b>'+DEPARTMENTS.length+'</b><span>departments</span></div></div></div>' +
+      '<div class="section-head"><div class="section-title">Browse by department</div></div><div class="chips">' +
+      '<div class="chip" onclick="deptGo(\'\')">All</div>' +
+      DEPARTMENTS.map(d=>'<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>').join("") + '</div>' +
+      '<div class="section-head"><div class="section-title">Top rated</div><button class="section-link" onclick="go(\'browse\')">View all →</button></div>' +
+      '<div class="grid">' + feat.map(noteCard).join("") + '</div>' +
+      '<div class="section-head"><div class="section-title">Fresh uploads</div></div>' +
+      '<div class="grid">' + latest.map(noteCard).join("") + '</div>' +
+      (notes.length === 0 ? '<div class="empty">No approved notes yet — be the first to <a href="#" onclick="go(\'sell\');return false;" style="color:var(--brand);font-weight:700">sell a note</a>!</div>' : '');
+    document.getElementById("hq").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
+  }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
+};
+function doSearch(){ filters.q = document.getElementById("hq").value.trim(); saveFilters(); go("browse"); }
+function deptGo(d){ filters.dept = d; filters.q = ""; saveFilters(); go("browse"); }
+
+VIEWS.browse = async function(){
+  app.innerHTML = '<div class="grid">' + '<div class="skel"></div>'.repeat(4) + '</div>';
+  try{
+    const notes = await approvedNotes(300);
+    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))].sort();
     renderBrowse(notes);
   }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
-}
+};
 function renderBrowse(notes){
+  const f = filters;
   let list = notes.filter(n => {
-    if(filters.q){ const q = filters.q.toLowerCase(); if(!((n.title||"").toLowerCase().includes(q) || (n.subject||"").toLowerCase().includes(q) || (n.seller_name||"").toLowerCase().includes(q))) return false; }
-    if(filters.dept && n.department !== filters.dept) return false;
-    if(filters.free === "free" && Number(n.price) !== 0) return false;
-    if(filters.free === "paid" && Number(n.price) === 0) return false;
-    if(filters.subject && !(n.subject||"").toLowerCase().includes(filters.subject.toLowerCase())) return false;
-    if(filters.sem && String(n.semester) !== String(filters.sem)) return false;
-    if(filters.band !== "any"){ const p = Number(n.price)||0; const lim = {b50:50,b100:100,b200:200,b300:300}[filters.band]; if(p > lim) return false; }
+    if(f.q){ const q = f.q.toLowerCase(); if(!((n.title||"").toLowerCase().includes(q) || (n.subject||"").toLowerCase().includes(q) || (n.seller_name||"").toLowerCase().includes(q))) return false; }
+    if(f.dept && n.department !== f.dept) return false;
+    if(f.free === "free" && Number(n.price) !== 0) return false;
+    if(f.free === "paid" && Number(n.price) === 0) return false;
+    if(f.subject && !(n.subject||"").toLowerCase().includes(f.subject.toLowerCase())) return false;
+    if(f.sem && String(n.semester) !== String(f.sem)) return false;
+    if(f.band !== "any"){ const lim = {b50:50,b100:100,b200:200,b300:300}[f.band]; if((Number(n.price)||0) > lim) return false; }
     return true;
   });
-  const sorts = {
-    new: (a,b)=>(Number(b.created_at)||0)-(Number(a.created_at)||0),
-    plow: (a,b)=>(Number(a.price)||0)-(Number(b.price)||0),
-    phigh: (a,b)=>(Number(b.price)||0)-(Number(a.price)||0),
-    top: (a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)
-  };
-  list.sort(sorts[filters.sort] || sorts.new);
+  const sorts = { new:(a,b)=>(+b.created_at||0)-(+a.created_at||0), plow:(a,b)=>(+a.price||0)-(+b.price||0),
+    phigh:(a,b)=>(+b.price||0)-(+a.price||0), top:(a,b)=>(+b.rating||0)-(+a.rating||0) };
+  list.sort(sorts[f.sort] || sorts.new);
   app.innerHTML =
-    '<div class="section-title">Browse notes</div>' +
+    '<div class="section-title" style="margin-top:4px">Browse notes</div>' +
     '<div class="filters">' +
-      '<div class="frow"><label>Search</label><input type="text" id="fq" placeholder="Title, subject, seller…" value="'+esc(filters.q)+'" style="flex:1;min-width:180px">' +
-      '<label>Type</label><select id="ffree">' +
-        '<option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option></select>' +
-      '<label>Department</label><select id="fdept"><option value="">All</option>' +
-        DEPARTMENTS.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join("") + '</select></div>' +
-      '<div class="frow"><label>Subject</label><input type="text" id="fsub" placeholder="e.g. Calculus" value="'+esc(filters.subject)+'">' +
-      '<label>Semester</label><select id="fsem"><option value="">All</option>' + [1,2,3,4,5,6,7,8].map(s=>'<option value="'+s+'">'+s+'</option>').join("") + '</select>' +
+      '<div class="frow"><label>Search</label><input type="text" id="fq" placeholder="Title, subject, seller…" value="'+esc(f.q)+'" style="flex:1;min-width:180px">' +
+      '<label>Type</label><select id="ffree"><option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option></select>' +
+      '<label>Department</label><select id="fdept"><option value="">All</option>' + DEPARTMENTS.map(d=>'<option>'+esc(d)+'</option>').join("") + '</select></div>' +
+      '<div class="frow"><label>Subject</label><input type="text" id="fsub" placeholder="e.g. Calculus" value="'+esc(f.subject)+'">' +
+      '<label>Semester</label><select id="fsem"><option value="">All</option>'+[1,2,3,4,5,6,7,8].map(s=>'<option>'+s+'</option>').join("")+'</select>' +
       '<label>Max price</label><select id="fband"><option value="any">Any</option><option value="b50">≤ Rs 50</option><option value="b100">≤ Rs 100</option><option value="b200">≤ Rs 200</option><option value="b300">≤ Rs 300</option></select>' +
       '<label>Sort</label><select id="fsort"><option value="new">Newest first</option><option value="plow">Price: low → high</option><option value="phigh">Price: high → low</option><option value="top">Top rated</option></select>' +
       '<button class="btn small ghost" onclick="applyFilters()">Apply</button></div>' +
     '</div>' +
-    '<div style="color:var(--muted);font-size:14px;margin-bottom:12px">'+list.length+' note(s) found</div>' +
+    '<div style="color:var(--muted);font-size:14px;margin-bottom:14px">'+list.length+' note(s) found · updates live</div>' +
     '<div class="grid">' + list.map(noteCard).join("") + '</div>' +
     (list.length === 0 ? '<div class="empty">No notes match your filters.</div>' : '');
-  document.getElementById("ffree").value = filters.free;
-  document.getElementById("fdept").value = filters.dept;
-  document.getElementById("fsem").value = filters.sem;
-  document.getElementById("fband").value = filters.band;
-  document.getElementById("fsort").value = filters.sort;
+  ["ffree","fdept","fsem","fband","fsort"].forEach(id => document.getElementById(id).value = f[id==="ffree"?"free":id==="fdept"?"dept":id==="fsem"?"sem":id==="fband"?"band":"sort"]);
   document.getElementById("fq").addEventListener("keydown", e => { if(e.key === "Enter") applyFilters(); });
 }
 function applyFilters(){
@@ -216,35 +249,36 @@ function applyFilters(){
   filters.sem = document.getElementById("fsem").value;
   filters.band = document.getElementById("fband").value;
   filters.sort = document.getElementById("fsort").value;
-  saveFilters(); viewBrowse();
+  saveFilters(); VIEWS.browse();
 }
 
-async function viewDetail(note_id){
+VIEWS.detail = async function(note_id){
   app.innerHTML = '<div class="loading">Loading note…</div>';
   try{
-    const rows = await sb("notes?select=*&note_id=eq."+note_id+"&limit=1");
-    if(!rows.length){ app.innerHTML = '<div class="empty">Note not found.</div>'; return; }
-    const n = rows[0];
-    const revs = await sb("reviews?select=*&note_id=eq."+note_id+"&order=timestamp.desc&limit=50");
+    const {data, error} = await db.from("notes").select("*").eq("note_id", note_id).limit(1);
+    if(error) throw error;
+    if(!data.length || data[0].status !== "approved"){ app.innerHTML = '<div class="empty">Note not found.</div>'; return; }
+    const n = data[0];
+    const {data: revs} = await db.from("reviews").select("*").eq("note_id", note_id).order("timestamp",{ascending:false}).limit(50);
     app.innerHTML =
       '<button class="back" onclick="go(\'browse\')">← Back to browse</button>' +
       '<div class="detail"><h1>'+esc(n.title||"Untitled note")+'</h1>' +
       '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+'</div>' +
-      '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+priceStr(n.price)+starStr(n.rating)+
-      '<span style="font-size:13px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
+      '<div class="topline">'+priceStr(n.price)+starStr(n.rating)+
+      '<span style="font-size:13.5px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
       (n.ai_summary ? '<div class="desc">'+esc(n.ai_summary)+'</div>' : '') +
-      (n.file_url ? '<div style="margin:14px 0"><a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download file</a></div>' : '') +
-      '<div class="section-title">Reviews</div><div id="revlist">' +
-        (revs.length ? revs.map(r=>'<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>').join("") : '<div class="empty" style="padding:20px">No reviews yet. Be the first!</div>') +
-      '</div>' +
+      (n.file_url ? '<div style="margin:16px 0"><a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download file</a></div>'
+                  : '<div class="notice warn" style="margin:16px 0">The seller has not attached a downloadable file yet.</div>') +
+      '<div class="section-title" style="font-size:19px">Reviews</div><div id="revlist">' +
+        ((revs||[]).length ? revs.map(r=>'<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>').join("")
+          : '<div class="empty" style="padding:22px">No reviews yet — be the first!</div>') + '</div>' +
       '<div class="section-title" style="font-size:17px">Write a review</div>' +
-      '<div class="field"><label>Your name</label><input id="rv_name" placeholder="e.g. Ahmed"></div>' +
-      '<div class="frow2"><div class="field"><label>Stars (1–5)</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
+      '<div class="frow2"><div class="field"><label>Your name</label><input id="rv_name" placeholder="e.g. Ahmed"></div>' +
+      '<div class="field"><label>Stars</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
       '<div class="field"><label>Comment</label><textarea id="rv_txt" placeholder="What did you think of these notes?"></textarea></div>' +
-      '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:10px"></div>' +
-      '</div>';
+      '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:12px"></div></div>';
   }catch(e){ app.innerHTML = '<div class="err">Could not load note: '+esc(e.message)+'</div>'; }
-}
+};
 async function submitReview(note_id){
   const name = document.getElementById("rv_name").value.trim() || "Anonymous";
   const stars = parseInt(document.getElementById("rv_stars").value, 10);
@@ -253,37 +287,36 @@ async function submitReview(note_id){
   if(!comment){ msg.innerHTML = '<div class="notice warn">Please write a comment.</div>'; return; }
   msg.innerHTML = "Submitting…";
   try{
-    await sb("reviews", {method:"POST", headers:{Prefer:"return=minimal"}, body: JSON.stringify({note_id: note_id, user_id: "web_" + Date.now(), user_name: name, stars: stars, comment: comment, timestamp: Date.now()})});
-    const all = await sb("reviews?select=stars&note_id=eq." + note_id);
+    const {error} = await db.from("reviews").insert({note_id, user_id: "web_"+Date.now(), user_name: name, stars, comment, timestamp: Date.now()});
+    if(error) throw error;
+    const {data: all} = await db.from("reviews").select("stars").eq("note_id", note_id);
     const avg = all.reduce((s,r)=>s+Number(r.stars||0),0) / all.length;
-    await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({rating: Math.round(avg*10)/10, review_count: all.length})});
-    msg.innerHTML = '<div class="notice">Review submitted. Thank you!</div>';
-    setTimeout(()=>viewDetail(note_id), 900);
+    await db.from("notes").update({rating: Math.round(avg*10)/10, review_count: all.length}).eq("note_id", note_id);
+    msg.innerHTML = '<div class="notice ok">Review submitted — thank you!</div>';
+    setTimeout(()=>VIEWS.detail(note_id), 900);
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 
-function viewSell(){
-  setNav("sell");
+VIEWS.sell = function(){
   app.innerHTML =
     '<form class="fcard" onsubmit="submitNote(event)"><h2>Sell your notes</h2>' +
-    '<div class="notice">Your note goes to the <b>admin for approval</b> first. Once approved, it appears publicly for everyone.</div>' +
+    '<div class="sub">Reach hundreds of TUM students. Your note goes to the admin for a quick review first.</div>' +
     '<div id="sell_msg"></div>' +
     '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers"></div>' +
     '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus"></div>' +
     '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI"></div></div>' +
     '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem">'+[1,2,3,4,5,6,7,8].map(s=>'<option>'+s+'</option>').join("")+'</select></div>' +
-    '<div class="field"><label>Price (Rs, 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required></div></div>' +
+    '<div class="field"><label>Price (Rs — 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required></div></div>' +
     '<div class="field"><label>Your name (seller) *</label><input id="s_name" required placeholder="e.g. Ali Raza"></div>' +
-    '<div class="field"><label>Description / summary</label><textarea id="s_desc" placeholder="What is covered in these notes?"></textarea></div>' +
+    '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?"></textarea></div>' +
     '<div class="field"><label>File URL (Google Drive / Dropbox link to the PDF)</label><input id="s_file" placeholder="https://…"></div>' +
-    '<button class="btn" type="submit">Submit for approval</button></form>';
-}
+    '<button class="btn" type="submit" style="width:100%">Submit for approval</button></form>';
+};
 async function submitNote(ev){
   ev.preventDefault();
   const msg = document.getElementById("sell_msg");
-  const note_id = Math.floor(Date.now()/1000);
   const body = {
-    note_id: note_id,
+    note_id: Math.floor(Date.now()/1000),
     seller_id: "web_" + Date.now(),
     seller_name: document.getElementById("s_name").value.trim(),
     title: document.getElementById("s_title").value.trim(),
@@ -293,31 +326,32 @@ async function submitNote(ev){
     price: parseInt(document.getElementById("s_price").value,10) || 0,
     ai_summary: document.getElementById("s_desc").value.trim(),
     file_url: document.getElementById("s_file").value.trim(),
-    status: "pending",
-    created_at: Date.now()
+    status: "pending", created_at: Date.now()
   };
   msg.innerHTML = "Submitting…";
   try{
-    await sb("notes", {method:"POST", headers:{Prefer:"return=minimal"}, body: JSON.stringify(body)});
-    msg.innerHTML = '<div class="notice">Submitted! Your note is <b>pending admin approval</b> and will appear publicly once approved.</div>';
+    const {error} = await db.from("notes").insert(body);
+    if(error) throw error;
+    msg.innerHTML = '<div class="notice ok">Submitted! Your note is <b>pending admin approval</b> and will appear publicly once approved.</div>';
     ev.target.reset();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
-}
-/* ============ ADMIN ============ */
+};
+
+/* ================= ADMIN ================= */
 function adminSession(){ try{ return JSON.parse(localStorage.getItem("tum_admin") || "null"); }catch(e){ return null; } }
-function viewAdmin(){
+VIEWS.admin = function(){
   const s = adminSession();
-  if(!s){ viewAdminLogin(); return; }
-  viewAdminDash(s);
-}
-function viewAdminLogin(){
-  app.innerHTML =
-    '<form class="fcard" onsubmit="adminLogin(event)" style="max-width:440px;margin:30px auto"><h2>Admin login</h2>' +
-    '<div class="notice">Only accounts marked as admin can sign in.</div><div id="al_msg"></div>' +
-    '<div class="field"><label>Email</label><input id="al_email" type="email" required></div>' +
-    '<div class="field"><label>Password</label><input id="al_pass" type="password" required></div>' +
-    '<button class="btn" type="submit" style="width:100%">Sign in</button></form>';
-}
+  if(!s){
+    app.innerHTML =
+      '<form class="fcard" onsubmit="adminLogin(event)" style="max-width:440px;margin:34px auto"><h2>Admin login</h2>' +
+      '<div class="sub">Only accounts marked as admin can sign in.</div><div id="al_msg"></div>' +
+      '<div class="field"><label>Email</label><input id="al_email" type="email" required></div>' +
+      '<div class="field"><label>Password</label><input id="al_pass" type="password" required></div>' +
+      '<button class="btn" type="submit" style="width:100%">Sign in</button></form>';
+    return;
+  }
+  adminDash(s, "pending");
+};
 async function adminLogin(ev){
   ev.preventDefault();
   const msg = document.getElementById("al_msg");
@@ -325,49 +359,78 @@ async function adminLogin(ev){
   const pass = document.getElementById("al_pass").value;
   msg.innerHTML = "Signing in…";
   try{
-    const rows = await sb("users?select=uid,name,email,is_admin&email=eq."+encodeURIComponent(email)+"&password=eq."+encodeURIComponent(pass)+"&is_admin=eq.true&limit=1");
-    if(!rows.length){ msg.innerHTML = '<div class="err">Invalid credentials or not an admin.</div>'; return; }
-    localStorage.setItem("tum_admin", JSON.stringify({uid: rows[0].uid, name: rows[0].name}));
-    viewAdminDash(rows[0]);
+    const {data, error} = await db.from("users").select("uid,name,email,is_admin")
+      .eq("email", email).eq("password", pass).eq("is_admin", true).limit(1);
+    if(error) throw error;
+    if(!data.length){ msg.innerHTML = '<div class="err">Invalid credentials or not an admin.</div>'; return; }
+    localStorage.setItem("tum_admin", JSON.stringify({uid: data[0].uid, name: data[0].name}));
+    adminDash(data[0], "pending");
   }catch(e){ msg.innerHTML = '<div class="err">Login failed: '+esc(e.message)+'</div>'; }
 }
 function adminLogout(){ localStorage.removeItem("tum_admin"); go("home"); }
-async function viewAdminDash(s, tab){
-  tab = tab || "pending";
+async function adminDash(s, tab){
   app.innerHTML = '<div class="loading">Loading admin panel…</div>';
   try{
-    let q = "notes?select=*&order=created_at.desc&limit=200";
-    if(tab === "pending") q = "notes?select=*&status=eq.pending&order=created_at.desc&limit=200";
-    if(tab === "reported") q = "notes?select=*&is_reported=eq.true&order=created_at.desc&limit=200";
-    const notes = await sb(q);
-    let rows = notes.map(n =>
-      '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br><span style="color:var(--muted);font-size:12px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+'</span>' +
-      (n.is_reported ? '<br><span class="badge" style="background:#fee2e2;color:var(--red)">Reported: '+esc(n.report_reason||"")+'</span>' : '') +
+    let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
+    if(tab === "pending") q = q.eq("status","pending");
+    if(tab === "reported") q = q.eq("is_reported", true);
+    const {data: notes, error} = await q;
+    if(error) throw error;
+    const rows = notes.map(n =>
+      '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+' · '+fmtDate(n.created_at)+'</span>' +
+      (n.is_reported ? '<br><span class="badge" style="background:var(--red-soft);color:var(--red)">Reported: '+esc(n.report_reason||"no reason")+'</span>' : '') +
       ' <span class="badge '+(n.status==="pending"?"pending":n.status==="rejected"?"rejected":"")+'">'+esc(n.status||"")+'</span></td>' +
-      '<td style="white-space:nowrap">' +
+      '<td class="acts">' +
       (n.status !== "approved" ? '<button class="btn small" onclick="adminSetStatus('+n.note_id+',\'approved\',\''+tab+'\')">Approve</button> ' : '') +
       (n.status !== "rejected" ? '<button class="btn small danger" onclick="adminSetStatus('+n.note_id+',\'rejected\',\''+tab+'\')">Reject</button> ' : '') +
       (n.is_reported ? '<button class="btn small ghost" onclick="adminDismissReport('+n.note_id+',\''+tab+'\')">Dismiss report</button>' : '') +
       '</td></tr>').join("");
     app.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="section-title" style="margin:0">Admin panel</div>' +
-      '<div><span style="font-size:14px;color:var(--muted);margin-right:10px">'+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
-      '<div class="notice">New submissions arrive here as <b>pending</b>. Approve them to make them public.</div>' +
-      '<div class="tabs"><button class="'+(tab==="pending"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'pending\')">Pending ('+notes.length+')</button>' +
-      '<button class="'+(tab==="reported"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'reported\')">Reported</button>' +
-      '<button class="'+(tab==="all"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'all\')">All notes</button></div>' +
-      (notes.length ? '<table class="admin"><tr><th>Note</th><th>Actions</th></tr>'+rows+'</table>' : '<div class="empty">Nothing here. 🎉</div>');
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
+      '<div class="section-title" style="margin:0">Admin panel</div>' +
+      '<div><span style="font-size:14px;color:var(--muted);margin-right:12px">👤 '+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
+      '<div class="notice">New submissions arrive here as <b>pending</b> — approve them to publish instantly to the live site.</div>' +
+      '<div class="tabs"><button class="'+(tab==="pending"?"active":"")+'" onclick="adminDash(adminSession(),\'pending\')">Pending</button>' +
+      '<button class="'+(tab==="reported"?"active":"")+'" onclick="adminDash(adminSession(),\'reported\')">Reported</button>' +
+      '<button class="'+(tab==="all"?"active":"")+'" onclick="adminDash(adminSession(),\'all\')">All notes</button></div>' +
+      (notes.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Note</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">Nothing here. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 }
 async function adminSetStatus(note_id, status, tab){
   if(!confirm("Set this note to '"+status+"'?")) return;
-  await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({status: status})});
-  viewAdminDash(adminSession(), tab);
+  const {error} = await db.from("notes").update({status}).eq("note_id", note_id);
+  if(error){ alert("Failed: " + error.message); return; }
+  adminDash(adminSession(), tab);
 }
 async function adminDismissReport(note_id, tab){
-  await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({is_reported: false, report_reason: ""})});
-  viewAdminDash(adminSession(), tab);
+  await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
+  adminDash(adminSession(), tab);
 }
+
+/* ================= REALTIME ================= */
+function initRealtime(){
+  const dot = document.getElementById("liveDot");
+  db.channel("tum-hub-live")
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"notes"}, p => {
+      toast("📝 New note submitted: " + (p.new.title || "Untitled"));
+      if(currentView === "home" || currentView === "browse") go(currentView, currentArg);
+      if(currentView === "admin") adminDash(adminSession(), "pending");
+    })
+    .on("postgres_changes", {event:"UPDATE", schema:"public", table:"notes"}, p => {
+      if(p.new.status === "approved" && p.old.status !== "approved") toast("✅ Note approved & live: " + (p.new.title || ""));
+      if(currentView === "home" || currentView === "browse") go(currentView, currentArg);
+      if(currentView === "admin") adminDash(adminSession(), "pending");
+    })
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"reviews"}, () => {
+      toast("⭐ New review posted");
+      if(currentView === "detail") VIEWS.detail(currentArg);
+    })
+    .subscribe(status => { dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
+}
+
+/* ================= BOOT ================= */
+go("home");
+initRealtime();
 </script>
 </body>
 </html>
