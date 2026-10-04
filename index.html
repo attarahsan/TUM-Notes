@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TUM Notes Hub — Buy & Sell Study Notes</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --ink:#1a1d29; --muted:#6b7280;
+  --brand:#4f46e5; --brand-d:#4338ca; --green:#16a34a; --red:#dc2626;
+  --amber:#d97706; --line:#e5e7eb; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.nav{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 18px}
+.logo{font-weight:800;font-size:20px;color:var(--brand);cursor:pointer;white-space:nowrap}
+.logo span{color:var(--ink)}
+.nav-links{display:flex;gap:4px;margin-left:auto}
+.nav-links button{background:none;border:none;padding:9px 14px;border-radius:9px;font-size:15px;cursor:pointer;color:var(--ink);font-weight:600}
+.nav-links button:hover{background:#eef0ff}
+.nav-links button.active{background:var(--brand);color:#fff}
+main{max-width:1100px;margin:0 auto;padding:22px 18px 60px}
+.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:18px;padding:38px 30px;margin-bottom:26px}
+.hero h1{font-size:30px;margin-bottom:8px}
+.hero p{opacity:.9;margin-bottom:18px}
+.searchbar{display:flex;gap:8px;max-width:520px}
+.searchbar input{flex:1;padding:13px 16px;border:none;border-radius:11px;font-size:15px;outline:none}
+.searchbar button{background:#1a1d29;color:#fff;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:700;cursor:pointer}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.chip{background:var(--card);border:1px solid var(--line);padding:8px 15px;border-radius:999px;font-size:14px;cursor:pointer;font-weight:600}
+.chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.section-title{font-size:21px;font-weight:800;margin:26px 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08)}
+.card h3{font-size:16px;margin-bottom:6px;line-height:1.35}
+.card .meta{font-size:13px;color:var(--muted);margin-bottom:10px}
+.card .row{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.price{font-weight:800;font-size:17px;color:var(--brand)}
+.price.free{color:var(--green)}
+.stars{color:#f59e0b;font-size:14px;letter-spacing:1px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#eef0ff;color:var(--brand);margin-left:6px}
+.badge.pending{background:#fef3c7;color:var(--amber)}
+.badge.rejected{background:#fee2e2;color:var(--red)}
+.filters{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;position:sticky;top:66px;z-index:40}
+.filters .frow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.filters .frow:last-child{margin-bottom:0}
+.filters select,.filters input[type=text]{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff}
+.filters label{font-size:13px;font-weight:700;color:var(--muted)}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px}
+.detail h1{font-size:26px;margin-bottom:8px}
+.detail .meta{color:var(--muted);font-size:14px;margin-bottom:16px}
+.detail .desc{background:var(--bg);border-radius:12px;padding:16px;font-size:15px;line-height:1.6;margin:16px 0;white-space:pre-wrap}
+.btn{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer}
+.btn:hover{background:var(--brand-d)}
+.btn.ghost{background:#eef0ff;color:var(--brand)}
+.btn.danger{background:var(--red)}
+.btn.small{padding:7px 14px;font-size:13px}
+.back{background:none;border:none;color:var(--brand);font-weight:700;font-size:14px;cursor:pointer;margin-bottom:14px}
+.review{border-top:1px solid var(--line);padding:14px 0}
+.review .who{font-weight:700;font-size:14px}
+.review .txt{font-size:14px;margin-top:6px;line-height:1.5}
+form.fcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;max-width:640px}
+form.fcard h2{margin-bottom:18px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--muted)}
+.field input,.field select,.field textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:15px;font-family:inherit}
+.field textarea{min-height:90px;resize:vertical}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.notice{background:#eef0ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:12px 15px;font-size:14px;margin-bottom:16px}
+.notice.warn{background:#fef3c7;border-color:#fcd34d;color:#92400e}
+.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.tabs button{background:var(--card);border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+.tabs button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+table.admin{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;font-size:14px}
+table.admin th,table.admin td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
+table.admin th{background:#f3f4f6;font-size:12px;text-transform:uppercase;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px}
+.loading{text-align:center;color:var(--muted);padding:50px;font-size:15px}
+.err{background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px 15px;margin-bottom:14px;font-size:14px}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:26px}
+@media(max-width:640px){.frow2{grid-template-columns:1fr}.hero h1{font-size:24px}.nav{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <div class="logo" onclick="go('home')">TUM <span>Notes Hub</span></div>
+    <div class="nav-links">
+      <button data-nav="home" onclick="go('home')">Home</button>
+      <button data-nav="browse" onclick="go('browse')">Browse</button>
+      <button data-nav="sell" onclick="go('sell')">Sell</button>
+      <button data-nav="admin" onclick="go('admin')">Admin</button>
+    </div>
+  </div>
+</header>
+<main id="app"><div class="loading">Loading…</div></main>
+<footer>TUM Notes Hub — Times University Multan · study notes marketplace</footer>
+<script>
+/* ============ CONFIG ============ */
+const SUPABASE_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
+
+async function sb(path, opts){
+  opts = opts || {};
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, Object.assign({}, opts, {
+    headers: Object.assign({apikey: SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json"}, opts.headers || {})
+  }));
+  if(!res.ok){ throw new Error("Supabase error " + res.status + ": " + (await res.text()).slice(0,200)); }
+  const t = await res.text();
+  return t ? JSON.parse(t) : null;
+}
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
+function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
+function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p+'</span>'; }
+
+/* ============ STATE ============ */
+const F = JSON.parse(localStorage.getItem("tum_filters") || "{}");
+const filters = Object.assign({q:"", dept:"", free:"all", subject:"", sem:"", band:"any", sort:"new"}, F);
+function saveFilters(){ localStorage.setItem("tum_filters", JSON.stringify(filters)); }
+let DEPARTMENTS = [];
+
+/* ============ ROUTER ============ */
+const app = document.getElementById("app");
+function setNav(name){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === name)); }
+function go(view, arg){ setNav(view); ({home:viewHome, browse:viewBrowse, detail:viewDetail, sell:viewSell, admin:viewAdmin}[view])(arg); window.scrollTo(0,0); }
+
+/* ============ VIEWS ============ */
+async function viewHome(){
+  app.innerHTML = '<div class="loading">Loading notes…</div>';
+  try{
+    const notes = await sb("notes?select=*&status=eq.approved&order=created_at.desc&limit=60");
+    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))];
+    const feat = [...notes].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
+    app.innerHTML =
+      '<div class="hero"><h1>Find notes. Ace exams.</h1><p>Buy & sell quality study notes from TUM students.</p>' +
+      '<div class="searchbar"><input id="hq" placeholder="Search anything here" value="'+esc(filters.q)+'">' +
+      '<button onclick="doSearch()">Search</button></div></div>' +
+      '<div class="section-title">Browse by department</div><div class="chips">' +
+      '<div class="chip" onclick="deptGo(\'\')">All</div>' +
+      DEPARTMENTS.map(d=>'<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>').join("") + '</div>' +
+      '<div class="section-title">Featured notes</div>' +
+      '<div class="grid">' + feat.map(noteCard).join("") + '</div>' +
+      (notes.length === 0 ? '<div class="empty">No approved notes yet. Be the first to <a href="#" onclick="go(\'sell\');return false;">sell a note</a>!</div>' : '');
+    document.getElementById("hq").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
+  }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
+}
+function doSearch(){ filters.q = document.getElementById("hq").value.trim(); saveFilters(); go("browse"); }
+function deptGo(d){ filters.dept = d; filters.q=""; saveFilters(); go("browse"); }
+
+function noteCard(n){
+  return '<div class="card" onclick="go(\'detail\','+n.note_id+')">' +
+    '<h3>'+esc(n.title || "Untitled note")+'</h3>' +
+    '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester ? ' · Sem '+n.semester : '')+'</div>' +
+    '<div>'+starStr(n.rating)+' <span style="font-size:12px;color:var(--muted)">('+(n.review_count||0)+')</span></div>' +
+    '<div class="row">'+priceStr(n.price)+'<span style="font-size:12px;color:var(--muted)">'+esc(n.seller_name||"")+'</span></div></div>';
+}
+
+async function viewBrowse(){
+  app.innerHTML = '<div class="loading">Loading notes…</div>';
+  try{
+    const notes = await sb("notes?select=*&status=eq.approved&order=created_at.desc&limit=200");
+    DEPARTMENTS = [...new Set(notes.map(n => n.department).filter(Boolean))];
+    renderBrowse(notes);
+  }catch(e){ app.innerHTML = '<div class="err">Could not load notes: '+esc(e.message)+'</div>'; }
+}
+function renderBrowse(notes){
+  let list = notes.filter(n => {
+    if(filters.q){ const q = filters.q.toLowerCase(); if(!((n.title||"").toLowerCase().includes(q) || (n.subject||"").toLowerCase().includes(q) || (n.seller_name||"").toLowerCase().includes(q))) return false; }
+    if(filters.dept && n.department !== filters.dept) return false;
+    if(filters.free === "free" && Number(n.price) !== 0) return false;
+    if(filters.free === "paid" && Number(n.price) === 0) return false;
+    if(filters.subject && !(n.subject||"").toLowerCase().includes(filters.subject.toLowerCase())) return false;
+    if(filters.sem && String(n.semester) !== String(filters.sem)) return false;
+    if(filters.band !== "any"){ const p = Number(n.price)||0; const lim = {b50:50,b100:100,b200:200,b300:300}[filters.band]; if(p > lim) return false; }
+    return true;
+  });
+  const sorts = {
+    new: (a,b)=>(Number(b.created_at)||0)-(Number(a.created_at)||0),
+    plow: (a,b)=>(Number(a.price)||0)-(Number(b.price)||0),
+    phigh: (a,b)=>(Number(b.price)||0)-(Number(a.price)||0),
+    top: (a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)
+  };
+  list.sort(sorts[filters.sort] || sorts.new);
+  app.innerHTML =
+    '<div class="section-title">Browse notes</div>' +
+    '<div class="filters">' +
+      '<div class="frow"><label>Search</label><input type="text" id="fq" placeholder="Title, subject, seller…" value="'+esc(filters.q)+'" style="flex:1;min-width:180px">' +
+      '<label>Type</label><select id="ffree">' +
+        '<option value="all">All</option><option value="free">Free</option><option value="paid">Paid</option></select>' +
+      '<label>Department</label><select id="fdept"><option value="">All</option>' +
+        DEPARTMENTS.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join("") + '</select></div>' +
+      '<div class="frow"><label>Subject</label><input type="text" id="fsub" placeholder="e.g. Calculus" value="'+esc(filters.subject)+'">' +
+      '<label>Semester</label><select id="fsem"><option value="">All</option>' + [1,2,3,4,5,6,7,8].map(s=>'<option value="'+s+'">'+s+'</option>').join("") + '</select>' +
+      '<label>Max price</label><select id="fband"><option value="any">Any</option><option value="b50">≤ Rs 50</option><option value="b100">≤ Rs 100</option><option value="b200">≤ Rs 200</option><option value="b300">≤ Rs 300</option></select>' +
+      '<label>Sort</label><select id="fsort"><option value="new">Newest first</option><option value="plow">Price: low → high</option><option value="phigh">Price: high → low</option><option value="top">Top rated</option></select>' +
+      '<button class="btn small ghost" onclick="applyFilters()">Apply</button></div>' +
+    '</div>' +
+    '<div style="color:var(--muted);font-size:14px;margin-bottom:12px">'+list.length+' note(s) found</div>' +
+    '<div class="grid">' + list.map(noteCard).join("") + '</div>' +
+    (list.length === 0 ? '<div class="empty">No notes match your filters.</div>' : '');
+  document.getElementById("ffree").value = filters.free;
+  document.getElementById("fdept").value = filters.dept;
+  document.getElementById("fsem").value = filters.sem;
+  document.getElementById("fband").value = filters.band;
+  document.getElementById("fsort").value = filters.sort;
+  document.getElementById("fq").addEventListener("keydown", e => { if(e.key === "Enter") applyFilters(); });
+}
+function applyFilters(){
+  filters.q = document.getElementById("fq").value.trim();
+  filters.free = document.getElementById("ffree").value;
+  filters.dept = document.getElementById("fdept").value;
+  filters.subject = document.getElementById("fsub").value.trim();
+  filters.sem = document.getElementById("fsem").value;
+  filters.band = document.getElementById("fband").value;
+  filters.sort = document.getElementById("fsort").value;
+  saveFilters(); viewBrowse();
+}
+
+async function viewDetail(note_id){
+  app.innerHTML = '<div class="loading">Loading note…</div>';
+  try{
+    const rows = await sb("notes?select=*&note_id=eq."+note_id+"&limit=1");
+    if(!rows.length){ app.innerHTML = '<div class="empty">Note not found.</div>'; return; }
+    const n = rows[0];
+    const revs = await sb("reviews?select=*&note_id=eq."+note_id+"&order=timestamp.desc&limit=50");
+    app.innerHTML =
+      '<button class="back" onclick="go(\'browse\')">← Back to browse</button>' +
+      '<div class="detail"><h1>'+esc(n.title||"Untitled note")+'</h1>' +
+      '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+'</div>' +
+      '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+priceStr(n.price)+starStr(n.rating)+
+      '<span style="font-size:13px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
+      (n.ai_summary ? '<div class="desc">'+esc(n.ai_summary)+'</div>' : '') +
+      (n.file_url ? '<div style="margin:14px 0"><a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open / download file</a></div>' : '') +
+      '<div class="section-title">Reviews</div><div id="revlist">' +
+        (revs.length ? revs.map(r=>'<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>').join("") : '<div class="empty" style="padding:20px">No reviews yet. Be the first!</div>') +
+      '</div>' +
+      '<div class="section-title" style="font-size:17px">Write a review</div>' +
+      '<div class="field"><label>Your name</label><input id="rv_name" placeholder="e.g. Ahmed"></div>' +
+      '<div class="frow2"><div class="field"><label>Stars (1–5)</label><select id="rv_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>' +
+      '<div class="field"><label>Comment</label><textarea id="rv_txt" placeholder="What did you think of these notes?"></textarea></div>' +
+      '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:10px"></div>' +
+      '</div>';
+  }catch(e){ app.innerHTML = '<div class="err">Could not load note: '+esc(e.message)+'</div>'; }
+}
+async function submitReview(note_id){
+  const name = document.getElementById("rv_name").value.trim() || "Anonymous";
+  const stars = parseInt(document.getElementById("rv_stars").value, 10);
+  const comment = document.getElementById("rv_txt").value.trim();
+  const msg = document.getElementById("rv_msg");
+  if(!comment){ msg.innerHTML = '<div class="notice warn">Please write a comment.</div>'; return; }
+  msg.innerHTML = "Submitting…";
+  try{
+    await sb("reviews", {method:"POST", headers:{Prefer:"return=minimal"}, body: JSON.stringify({note_id: note_id, user_id: "web_" + Date.now(), user_name: name, stars: stars, comment: comment, timestamp: Date.now()})});
+    const all = await sb("reviews?select=stars&note_id=eq." + note_id);
+    const avg = all.reduce((s,r)=>s+Number(r.stars||0),0) / all.length;
+    await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({rating: Math.round(avg*10)/10, review_count: all.length})});
+    msg.innerHTML = '<div class="notice">Review submitted. Thank you!</div>';
+    setTimeout(()=>viewDetail(note_id), 900);
+  }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+}
+
+function viewSell(){
+  setNav("sell");
+  app.innerHTML =
+    '<form class="fcard" onsubmit="submitNote(event)"><h2>Sell your notes</h2>' +
+    '<div class="notice">Your note goes to the <b>admin for approval</b> first. Once approved, it appears publicly for everyone.</div>' +
+    '<div id="sell_msg"></div>' +
+    '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Calculus II — Complete Solved Past Papers"></div>' +
+    '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Calculus"></div>' +
+    '<div class="field"><label>Department</label><input id="s_dept" value="Computing/AI"></div></div>' +
+    '<div class="frow2"><div class="field"><label>Semester</label><select id="s_sem">'+[1,2,3,4,5,6,7,8].map(s=>'<option>'+s+'</option>').join("")+'</select></div>' +
+    '<div class="field"><label>Price (Rs, 0 = Free) *</label><input id="s_price" type="number" min="0" value="0" required></div></div>' +
+    '<div class="field"><label>Your name (seller) *</label><input id="s_name" required placeholder="e.g. Ali Raza"></div>' +
+    '<div class="field"><label>Description / summary</label><textarea id="s_desc" placeholder="What is covered in these notes?"></textarea></div>' +
+    '<div class="field"><label>File URL (Google Drive / Dropbox link to the PDF)</label><input id="s_file" placeholder="https://…"></div>' +
+    '<button class="btn" type="submit">Submit for approval</button></form>';
+}
+async function submitNote(ev){
+  ev.preventDefault();
+  const msg = document.getElementById("sell_msg");
+  const note_id = Math.floor(Date.now()/1000);
+  const body = {
+    note_id: note_id,
+    seller_id: "web_" + Date.now(),
+    seller_name: document.getElementById("s_name").value.trim(),
+    title: document.getElementById("s_title").value.trim(),
+    subject: document.getElementById("s_subject").value.trim(),
+    department: document.getElementById("s_dept").value.trim() || "Computing/AI",
+    semester: parseInt(document.getElementById("s_sem").value,10),
+    price: parseInt(document.getElementById("s_price").value,10) || 0,
+    ai_summary: document.getElementById("s_desc").value.trim(),
+    file_url: document.getElementById("s_file").value.trim(),
+    status: "pending",
+    created_at: Date.now()
+  };
+  msg.innerHTML = "Submitting…";
+  try{
+    await sb("notes", {method:"POST", headers:{Prefer:"return=minimal"}, body: JSON.stringify(body)});
+    msg.innerHTML = '<div class="notice">Submitted! Your note is <b>pending admin approval</b> and will appear publicly once approved.</div>';
+    ev.target.reset();
+  }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+}
+/* ============ ADMIN ============ */
+function adminSession(){ try{ return JSON.parse(localStorage.getItem("tum_admin") || "null"); }catch(e){ return null; } }
+function viewAdmin(){
+  const s = adminSession();
+  if(!s){ viewAdminLogin(); return; }
+  viewAdminDash(s);
+}
+function viewAdminLogin(){
+  app.innerHTML =
+    '<form class="fcard" onsubmit="adminLogin(event)" style="max-width:440px;margin:30px auto"><h2>Admin login</h2>' +
+    '<div class="notice">Only accounts marked as admin can sign in.</div><div id="al_msg"></div>' +
+    '<div class="field"><label>Email</label><input id="al_email" type="email" required></div>' +
+    '<div class="field"><label>Password</label><input id="al_pass" type="password" required></div>' +
+    '<button class="btn" type="submit" style="width:100%">Sign in</button></form>';
+}
+async function adminLogin(ev){
+  ev.preventDefault();
+  const msg = document.getElementById("al_msg");
+  const email = document.getElementById("al_email").value.trim();
+  const pass = document.getElementById("al_pass").value;
+  msg.innerHTML = "Signing in…";
+  try{
+    const rows = await sb("users?select=uid,name,email,is_admin&email=eq."+encodeURIComponent(email)+"&password=eq."+encodeURIComponent(pass)+"&is_admin=eq.true&limit=1");
+    if(!rows.length){ msg.innerHTML = '<div class="err">Invalid credentials or not an admin.</div>'; return; }
+    localStorage.setItem("tum_admin", JSON.stringify({uid: rows[0].uid, name: rows[0].name}));
+    viewAdminDash(rows[0]);
+  }catch(e){ msg.innerHTML = '<div class="err">Login failed: '+esc(e.message)+'</div>'; }
+}
+function adminLogout(){ localStorage.removeItem("tum_admin"); go("home"); }
+async function viewAdminDash(s, tab){
+  tab = tab || "pending";
+  app.innerHTML = '<div class="loading">Loading admin panel…</div>';
+  try{
+    let q = "notes?select=*&order=created_at.desc&limit=200";
+    if(tab === "pending") q = "notes?select=*&status=eq.pending&order=created_at.desc&limit=200";
+    if(tab === "reported") q = "notes?select=*&is_reported=eq.true&order=created_at.desc&limit=200";
+    const notes = await sb(q);
+    let rows = notes.map(n =>
+      '<tr><td><b>'+esc(n.title||"Untitled")+'</b><br><span style="color:var(--muted);font-size:12px">'+esc(n.subject||"")+' · '+esc(n.seller_name||"")+' · Rs '+(Number(n.price)||0)+'</span>' +
+      (n.is_reported ? '<br><span class="badge" style="background:#fee2e2;color:var(--red)">Reported: '+esc(n.report_reason||"")+'</span>' : '') +
+      ' <span class="badge '+(n.status==="pending"?"pending":n.status==="rejected"?"rejected":"")+'">'+esc(n.status||"")+'</span></td>' +
+      '<td style="white-space:nowrap">' +
+      (n.status !== "approved" ? '<button class="btn small" onclick="adminSetStatus('+n.note_id+',\'approved\',\''+tab+'\')">Approve</button> ' : '') +
+      (n.status !== "rejected" ? '<button class="btn small danger" onclick="adminSetStatus('+n.note_id+',\'rejected\',\''+tab+'\')">Reject</button> ' : '') +
+      (n.is_reported ? '<button class="btn small ghost" onclick="adminDismissReport('+n.note_id+',\''+tab+'\')">Dismiss report</button>' : '') +
+      '</td></tr>').join("");
+    app.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="section-title" style="margin:0">Admin panel</div>' +
+      '<div><span style="font-size:14px;color:var(--muted);margin-right:10px">'+esc(s.name||s.uid)+'</span><button class="btn small ghost" onclick="adminLogout()">Logout</button></div></div>' +
+      '<div class="notice">New submissions arrive here as <b>pending</b>. Approve them to make them public.</div>' +
+      '<div class="tabs"><button class="'+(tab==="pending"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'pending\')">Pending ('+notes.length+')</button>' +
+      '<button class="'+(tab==="reported"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'reported\')">Reported</button>' +
+      '<button class="'+(tab==="all"?"active":"")+'" onclick="viewAdminDash(adminSession(),\'all\')">All notes</button></div>' +
+      (notes.length ? '<table class="admin"><tr><th>Note</th><th>Actions</th></tr>'+rows+'</table>' : '<div class="empty">Nothing here. 🎉</div>');
+  }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
+}
+async function adminSetStatus(note_id, status, tab){
+  if(!confirm("Set this note to '"+status+"'?")) return;
+  await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({status: status})});
+  viewAdminDash(adminSession(), tab);
+}
+async function adminDismissReport(note_id, tab){
+  await sb("notes?note_id=eq."+note_id, {method:"PATCH", headers:{Prefer:"return=minimal"}, body: JSON.stringify({is_reported: false, report_reason: ""})});
+  viewAdminDash(adminSession(), tab);
+}
+</script>
+</body>
+</html>
