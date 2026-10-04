@@ -965,21 +965,11 @@ async function submitWithdraw(ev){
   if(!amount || amount < MIN_WITHDRAWAL){ msg.innerHTML = '<div class="notice warn">Minimum withdrawal is Rs '+MIN_WITHDRAWAL+'.</div>'; return; }
   if(!ep){ msg.innerHTML = '<div class="notice warn">Please enter your Easypaisa number.</div>'; return; }
   if(!pw){ msg.innerHTML = '<div class="notice warn">Withdrawal password dalein.</div>'; return; }
-  msg.innerHTML = "Verifying…";
+  msg.innerHTML = "Processing…";
   try{
-    const {data: urow, error: ue} = await db.from("users").select("wallet,withdraw_pass_hash").eq("uid", me.uid).limit(1);
-    if(ue) throw ue;
-    if(!urow || !urow.length) throw new Error("Account nahi mila");
-    const bal = Number(urow[0].wallet)||0;
-    const hh = urow[0].withdraw_pass_hash;
-    if(!hh){ msg.innerHTML = '<div class="err">Withdrawal password set nahi hye.</div>'; await refreshWallet(); VIEWS.wallet(); return; }
-    if((await sha256hex("tum-withdraw::" + pw)) !== hh){ msg.innerHTML = '<div class="err">❌ Ghalat withdrawal password.</div>'; return; }
-    if(amount > bal){ msg.innerHTML = '<div class="err">Insufficient balance. Available: Rs '+bal.toLocaleString()+'</div>'; return; }
-    msg.innerHTML = "Processing…";
-    const {error: e1} = await db.from("users").update({wallet: bal - amount, easypaisa_number: ep}).eq("uid", me.uid);
-    if(e1) throw e1;
-    const {error: e2} = await db.from("withdrawals").insert({seller_id: me.uid, seller_name: me.name, amount: amount, easypaisa_number: ep, status: "pending", timestamp: Date.now()});
-    if(e2) throw e2;
+    const {data, error} = await db.functions.invoke("request-withdrawal", {body: {amount: amount, easypaisa_number: ep, password: pw}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
     await refreshWallet();
     msg.innerHTML = '<div class="notice ok">Withdrawal requested! Rs '+amount.toLocaleString()+' will be sent to '+esc(ep)+' after admin approval.</div>';
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
@@ -1164,29 +1154,11 @@ async function adminOrdersView(s){
 async function adminOrderSet(order_id, note_id, status){
   if(!confirm("Set this order to '"+status+"'?")) return;
   try{
-    const {data: orows} = await db.from("orders").select("*").eq("order_id", order_id).limit(1);
-    if(!orows || !orows.length) throw new Error("Order not found");
-    const o = orows[0];
-    const amount = Number(o.amount)||0;
-    const commission = Math.round(amount * ADMIN_COMMISSION);
-    const earning = amount - commission;
-    const {error} = await db.from("orders").update({status: status, commission: commission, seller_earning: earning}).eq("order_id", order_id);
+    const {data, error} = await db.functions.invoke("approve-order", {body: {order_id: order_id, decision: status}});
     if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
     if(status === "approved"){
-      const {data: srow} = await db.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).limit(1);
-      if(srow && srow.length){
-        await db.from("users").update({wallet: (Number(srow[0].wallet)||0)+earning, total_earnings: (Number(srow[0].total_earnings)||0)+earning}).eq("uid", o.seller_id);
-      }
-      const admin = currentUser();
-      if(admin){
-        const {data: arow} = await db.from("users").select("wallet,total_earnings").eq("uid", admin.uid).limit(1);
-        if(arow && arow.length){
-          await db.from("users").update({wallet: (Number(arow[0].wallet)||0)+commission, total_earnings: (Number(arow[0].total_earnings)||0)+commission}).eq("uid", admin.uid);
-        }
-      }
-      const {data: nrow} = await db.from("notes").select("downloads").eq("note_id", note_id).limit(1);
-      if(nrow && nrow.length) await db.from("notes").update({downloads: (Number(nrow[0].downloads)||0)+1}).eq("note_id", note_id);
-      toast("✅ Approved — seller +Rs "+earning.toLocaleString()+", your commission Rs "+commission.toLocaleString());
+      toast("✅ Approved — seller +Rs "+Number(data.earning||0).toLocaleString()+", your commission Rs "+Number(data.commission||0).toLocaleString());
     }else{
       toast("Order rejected");
     }
@@ -1218,11 +1190,10 @@ async function adminWithdrawalsView(s){
 async function adminWithdrawSet(request_id, seller_id, amount, status){
   if(!confirm("Mark this withdrawal as '"+status+"'?")) return;
   try{
-    const {error} = await db.from("withdrawals").update({status: status}).eq("request_id", request_id);
+    const {data, error} = await db.functions.invoke("decide-withdrawal", {body: {request_id: request_id, decision: status}});
     if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
     if(status === "rejected"){
-      const {data} = await db.from("users").select("wallet").eq("uid", seller_id).limit(1);
-      if(data && data.length) await db.from("users").update({wallet: (Number(data[0].wallet)||0)+Number(amount)}).eq("uid", seller_id);
       toast("Rejected — amount refunded to seller wallet");
     }else{
       toast("✅ Marked as sent");
@@ -1252,12 +1223,11 @@ async function adminSubsView(s){
 async function adminSubSet(id, seller_id, plan, status){
   if(!confirm("Set this subscription to '"+status+"'?")) return;
   try{
-    const {error} = await db.from("subscriptions").update({status: status}).eq("id", id);
+    const {data, error} = await db.functions.invoke("activate-plan", {body: {id: id, decision: status}});
     if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
     if(status === "approved"){
-      const p = PLANS[plan] || PLANS.free;
-      await db.from("users").update({plan: plan, note_limit: p.notes, plan_expires: Date.now()+30*864e5}).eq("uid", seller_id);
-      toast("✅ "+p.name+" plan activated for seller");
+      toast("✅ "+planName(plan)+" plan activated for seller");
     }else{ toast("Subscription rejected"); }
     adminDash(currentUser(), "subs");
   }catch(e){ alert("Failed: "+e.message); }
