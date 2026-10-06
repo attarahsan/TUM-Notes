@@ -266,6 +266,7 @@ const ADMIN_COMMISSION = 0.30;
 const app = document.getElementById("app");
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function fmtDate(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
+function fmtDateTime(ms){ if(!ms) return "—"; const d = new Date(Number(ms)); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) + ", " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }
 function starStr(r){ r = Number(r)||0; let s=""; for(let i=1;i<=5;i++) s += i <= Math.round(r) ? "★" : "☆"; return '<span class="stars">'+s+'</span>'; }
 function priceStr(p){ p = Number(p)||0; return p === 0 ? '<span class="price free">Free</span>' : '<span class="price">Rs '+p.toLocaleString()+'</span>'; }
 function imageList(n){ try{ const a = JSON.parse(n.image_urls || "[]"); if(Array.isArray(a) && a.length) return a; }catch(e){} return n.image_urls ? [n.image_urls] : []; }
@@ -332,6 +333,28 @@ let currentView = "home", currentArg = null, currentNote = null;
 /* ================= AUTH ================= */
 function currentUser(){ try{ return JSON.parse(localStorage.getItem("tum_user") || "null"); }catch(e){ return null; } }
 function setSession(u){ localStorage.setItem("tum_user", JSON.stringify(u)); subscribeWallet(); updateUserBox(); loadWishlist(); }
+/* ---- activity logging (visits / sign-ins) for the admin Activity panel ---- */
+function logActivity(event){
+  try{
+    const u = currentUser();
+    db.from("activity_log").insert({
+      user_id: u ? u.uid : null,
+      name: u ? (u.name || "") : "",
+      email: u ? (u.email || "") : "",
+      event: event,
+      page: location.pathname || "/",
+      user_agent: (navigator.userAgent || "").slice(0, 180)
+    }).then(function(){}, function(){});
+  }catch(e){}
+}
+function shortUA(ua){
+  ua = ua || "";
+  if(/Mobile|Android|iPhone|iPad/i.test(ua)) return "📱 Mobile";
+  if(/Windows/i.test(ua)) return "💻 Windows";
+  if(/Macintosh|Mac OS/i.test(ua)) return "💻 Mac";
+  if(/Linux/i.test(ua)) return "💻 Linux";
+  return ua ? "🌐 Browser" : "—";
+}
 async function logout(){ const ch = window._wchan; if(ch){ db.removeChannel(ch); window._wchan = null; } try{ await db.auth.signOut(); }catch(e){} localStorage.removeItem("tum_user"); _wishlist = new Set(); updateUserBox(); go("home"); }
 function requireLogin(){ const u = currentUser(); if(!u){ toast("Please login or create an account first"); go("login"); return null; } return u; }
 function updateUserBox(){
@@ -488,9 +511,11 @@ async function handleGoogleSession(){
     const {data: rows, error: selErr} = await db.from("users").select("*").eq("email", email).limit(1);
     if(selErr) throw selErr;
     let urow;
+    let isNewUser = false;
     if(rows && rows.length){
       urow = rows[0];
     }else{
+      isNewUser = true;
       const {data: ins, error} = await db.from("users").insert({uid: au.id, name: name, email: email, role: "user", is_admin: false, wallet: 30, total_earnings: 0, plan: "free", note_limit: 25, plan_expires: 0, created_at: Date.now(), referred_by: (localStorage.getItem("tum_ref") || null)}).select();
       if(error) throw error;
       urow = ins[0];
@@ -510,6 +535,7 @@ async function handleGoogleSession(){
       }
     }
     setSession({uid: urow.uid, name: urow.name, email: urow.email, is_admin: urow.is_admin});
+    if(code) logActivity(isNewUser ? "signup" : "signin");
     await refreshWallet();
     if(code) toast("✅ Logged in as " + (urow.name || email));
   }catch(e){
@@ -1072,7 +1098,7 @@ VIEWS.admin = function(){
 };
 function adminTabs(active){
   const t = function(k, label){ return '<button class="'+(active===k?"active":"")+'" onclick="adminDash(currentUser(),\''+k+'\')">'+label+'</button>'; };
-  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("subs","💎 Plans") + t("security","🔐 Security") + '</div>';
+  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("subs","💎 Plans") + t("activity","📊 Activity") + t("security","🔐 Security") + '</div>';
 }
 function adminHead(s, note){
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
@@ -1085,6 +1111,7 @@ async function adminDash(s, tab){
   if(tab === "orders") return adminOrdersView(s);
   if(tab === "withdrawals") return adminWithdrawalsView(s);
   if(tab === "subs") return adminSubsView(s);
+  if(tab === "activity") return adminActivityView(s);
   if(tab === "security") return adminSecurityView(s);
   try{
     let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
@@ -1126,6 +1153,74 @@ async function adminSetStatus(note_id, status, tab){
 async function adminDismissReport(note_id, tab){
   await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
   adminDash(currentUser(), tab);
+}
+
+/* ---- admin: activity (visits, sign-ins, sales) ---- */
+async function adminActivityView(s){
+  app.innerHTML = '<div class="loading">Loading activity…</div>';
+  try{
+    const ds = new Date(); ds.setHours(0,0,0,0); const t0 = ds.getTime();
+    const uRes = await db.from("users").select("uid", {count:"exact", head:true});
+    const aRes = await db.from("activity_log").select("*").order("created_at", {ascending:false}).limit(300);
+    if(aRes.error) throw aRes.error;
+    const oRes = await db.from("orders").select("*").order("timestamp", {ascending:false}).limit(300);
+    if(oRes.error) throw oRes.error;
+    const acts = aRes.data || [];
+    const ords = oRes.data || [];
+    const visitsToday = acts.filter(function(a){ return a.event === "visit" && a.created_at >= t0; }).length;
+    const signinsToday = acts.filter(function(a){ return (a.event === "signin" || a.event === "signup") && a.created_at >= t0; }).length;
+    const totalUsers = (uRes.count != null) ? uRes.count : "—";
+    const approvedSales = ords.filter(function(o){ return o.status === "approved"; });
+    const revenue = approvedSales.reduce(function(x,o){ return x + (Number(o.amount)||0); }, 0);
+    const signins = acts.filter(function(a){ return a.event === "signin" || a.event === "signup"; }).slice(0, 60);
+    const visits = acts.filter(function(a){ return a.event === "visit"; }).slice(0, 60);
+    const statCard = function(lbl, val){ return '<div class="statcard" style="flex:1;min-width:140px"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>'; };
+    let html = adminHead(s, "Kaun aaya, kis ne sign in kiya, aur kis ke notes bike — sab kuch yahan.") + adminTabs("activity") +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">' +
+      statCard("👥 Total users", totalUsers) +
+      statCard("👁 Visits today", visitsToday) +
+      statCard("🟢 Sign-ins today", signinsToday) +
+      statCard("💰 Notes sold", approvedSales.length) +
+      statCard("💵 Sales revenue", "Rs " + revenue.toLocaleString()) +
+      '</div>';
+    // --- sign-ins table ---
+    html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">🟢 Recent sign-ins</div>' +
+      (signins.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>User</th><th>Type</th><th>When</th></tr>' +
+      signins.map(function(a){
+        return '<tr><td><b>'+esc(a.name || "—")+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(a.email || "")+'</span></td>' +
+        '<td>'+(a.event === "signup" ? "🆕 Signup" : "🔑 Sign-in")+'</td><td style="white-space:nowrap">'+fmtDateTime(a.created_at)+'</td></tr>';
+      }).join("") + '</table></div>' : '<div class="empty">No sign-ins logged yet.</div>');
+    // --- visits table ---
+    html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">👁 Recent visits</div>' +
+      (visits.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Visitor</th><th>Device</th><th>When</th></tr>' +
+      visits.map(function(a){
+        const who = a.name ? '<b>'+esc(a.name)+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(a.email || "")+'</span>' : '<span style="color:var(--muted)">👤 Guest (login nahi kiya)</span>';
+        return '<tr><td>'+who+'</td><td>'+shortUA(a.user_agent)+'</td><td style="white-space:nowrap">'+fmtDateTime(a.created_at)+'</td></tr>';
+      }).join("") + '</table></div>' : '<div class="empty">No visits logged yet.</div>');
+    // --- sales table ---
+    const noteIds = [...new Set(approvedSales.map(function(o){ return o.note_id; }).filter(Boolean))];
+    const buyerIds = [...new Set(approvedSales.map(function(o){ return o.buyer_id; }).filter(Boolean))];
+    const titleMap = {}, buyerMap = {};
+    if(noteIds.length){
+      const {data: ns} = await db.from("notes").select("note_id,title,seller_name").in("note_id", noteIds);
+      (ns||[]).forEach(function(n){ titleMap[n.note_id] = {title: n.title, seller: n.seller_name}; });
+    }
+    if(buyerIds.length){
+      const {data: us} = await db.from("users").select("uid,name,email").in("uid", buyerIds);
+      (us||[]).forEach(function(x){ buyerMap[x.uid] = x.name || x.email; });
+    }
+    html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">💰 Notes sold (kis ne beche)</div>' +
+      (approvedSales.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Note</th><th>Seller</th><th>Buyer</th><th>Amount</th><th>Date</th></tr>' +
+      approvedSales.map(function(o){
+        const t = titleMap[o.note_id] || {};
+        return '<tr><td><b>'+esc(t.title || ("Note #"+o.note_id))+'</b></td>' +
+        '<td>'+esc(t.seller || "—")+'</td>' +
+        '<td>'+esc(buyerMap[o.buyer_id] || "—")+'</td>' +
+        '<td><b>Rs '+Number(o.amount||0).toLocaleString()+'</b><br><span style="color:var(--muted);font-size:12px">seller Rs '+Number(o.seller_earning||0).toLocaleString()+' · fee Rs '+Number(o.commission||0).toLocaleString()+'</span></td>' +
+        '<td style="white-space:nowrap">'+fmtDateTime(o.timestamp)+'</td></tr>';
+      }).join("") + '</table></div>' : '<div class="empty">No approved sales yet.</div>');
+    app.innerHTML = html;
+  }catch(e){ app.innerHTML = '<div class="err">Could not load activity: '+esc(e.message || e)+'</div>'; }
 }
 
 /* ---- admin: security (admin login password gate) ---- */
@@ -1597,6 +1692,7 @@ subscribeWallet();
 initRealtime();
 captureReferral();
 loadWishlist();
+if(!sessionStorage.getItem("tum_visit")){ sessionStorage.setItem("tum_visit", "1"); logActivity("visit"); }
 db.auth.onAuthStateChange(function(ev){ if(ev === "SIGNED_IN") handleGoogleSession(); });
 handleGoogleSession().then(function(){
   if(location.hash.indexOf("access_token") > -1){ try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){} }
