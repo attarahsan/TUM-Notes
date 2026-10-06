@@ -13,6 +13,8 @@ DROP POLICY IF EXISTS wishlist_all ON public.wishlist;
 CREATE POLICY wishlist_all ON public.wishlist FOR ALL TO authenticated
   USING (auth.uid()::text = user_id)
   WITH CHECK (auth.uid()::text = user_id);
+-- explicit GRANTs: Supabase no longer auto-grants table privileges to anon/authenticated on new tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.wishlist TO authenticated;
 
 -- ---------- notifications ----------
 CREATE TABLE IF NOT EXISTS public.notifications (
@@ -35,6 +37,8 @@ CREATE POLICY notif_insert ON public.notifications FOR INSERT TO authenticated
 CREATE POLICY notif_update ON public.notifications FOR UPDATE TO authenticated
   USING (auth.uid()::text = user_id)
   WITH CHECK (auth.uid()::text = user_id);
+-- explicit GRANTs: Supabase no longer auto-grants table privileges to anon/authenticated on new tables
+GRANT SELECT, INSERT, UPDATE ON public.notifications TO authenticated;
 
 -- ---------- users: referral columns ----------
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS referral_code text;
