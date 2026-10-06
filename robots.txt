@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://subtle-quokka-c95094.netlify.app/sitemap.xml
+Sitemap: https://tumnotespro5.netlify.app/sitemap.xml
