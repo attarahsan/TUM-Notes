@@ -272,6 +272,9 @@ const PAYMENT_NUMBER = "03374667402";
 const PAYMENT_TITLE = "Ahsan Abid";
 const MIN_WITHDRAWAL = 300;
 const ADMIN_COMMISSION = 0.30;
+const COMMISSION_RATES = {free: 0.30, pro: 0.23, business: 0.15}; // admin ka cut — baqi seller ka
+function commissionRate(plan){ return COMMISSION_RATES[plan] || 0.30; }
+function myCommission(){ const me = currentUser(); let p = (me && me.plan) || "free"; if(me && me.plan_expires && Number(me.plan_expires) < Date.now() && p !== "free") p = "free"; return {plan: p, rate: commissionRate(p), earnPct: Math.round((1 - commissionRate(p)) * 100)}; }
 const WITHDRAW_METHODS = ["Easypaisa","JazzCash","Meezan Bank","HBL","UBL"];
 
 /* ================= HELPERS ================= */
@@ -927,7 +930,7 @@ async function sellPlanLimit(){
   const me = currentUser();
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", me.uid);
   const limit = me.note_limit || 25;
-  return {used: count || 0, limit: limit, plan: me.plan || "free", full: (count || 0) >= limit};
+  return {used: count || 0, limit: limit, plan: me.plan || "free", full: limitReached(count || 0, limit)};
 }
 function limitNotice(lim){
   return '<div class="notice">You have uploaded <b>' + lim.used + '/' + planLimitTxt(lim.limit) + '</b> notes <span style="color:var(--muted)">(' + planName(lim.plan) + ' plan)</span></div>' +
@@ -995,7 +998,7 @@ async function submitImgNote(ev){
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
   const {data: urow} = await db.from("users").select("note_limit").eq("uid", u.uid).limit(1);
   const limit = (urow && urow[0] && urow[0].note_limit) || 25;
-  if((count || 0) >= limit){ msg.innerHTML = '<div class="err">Plan limit reached (' + planLimitTxt(limit) + ' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
+  if(limitReached(count || 0, limit)){ msg.innerHTML = '<div class="err">Plan limit reached (' + planLimitTxt(limit) + ' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
   const price = Math.max(0, parseInt(document.getElementById("s_price").value, 10) || 0);
   try{
     // fast uploads: compress on-device + 4 parallel uploads with live progress
@@ -1039,7 +1042,7 @@ async function submitNote(ev){
   const {count} = await db.from("notes").select("note_id", {count:"exact", head:true}).eq("seller_id", u.uid);
   const {data: urow} = await db.from("users").select("note_limit,plan").eq("uid", u.uid).limit(1);
   const limit = (urow && urow[0] && urow[0].note_limit) || 25;
-  if((count||0) >= limit){ msg.innerHTML = '<div class="err">Plan limit reached ('+planLimitTxt(limit)+' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
+  if(limitReached(count||0, limit)){ msg.innerHTML = '<div class="err">Plan limit reached ('+planLimitTxt(limit)+' notes). <a href="#" onclick="go(\'plans\');return false;" style="color:var(--brand);font-weight:700">Upgrade your plan 💎</a></div>'; return; }
   const fileInput = document.getElementById("s_file");
   const coverInput = document.getElementById("s_cover");
   if(!fileInput.files.length){ msg.innerHTML = '<div class="notice warn">Please attach your note file.</div>'; return; }
@@ -1083,7 +1086,7 @@ VIEWS.wallet = async function(){
       '<div class="statcard"><div class="lbl">Available balance</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
       '<div class="statcard"><div class="lbl">Total earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
-    '<div class="notice">When your note sells, <b>70% goes to your wallet</b> and 30% is the platform commission.</div>' +
+    '<div class="notice">When your note sells, <b>'+myCommission().earnPct+'% goes to your wallet</b> and '+Math.round(myCommission().rate*100)+'% is the platform commission'+(myCommission().plan!=="free"?" ("+planName(myCommission().plan)+" plan)":"")+"</div>" +
     '<div class="fcard" style="margin-bottom:24px;border:2px dashed var(--brand)"><h2>🎁 Invite & earn — Rs 20 bonus</h2>' +
     '<div class="sub">Apna referral link doston ko bhejo. Jab koi aapke link se join karega to <b>aapko + aapke dost ko dono ko Rs 20</b> wallet bonus milega!</div>' +
     (me.referral_code
@@ -1115,10 +1118,10 @@ function adminWalletView(me){
   app.innerHTML =
     '<div class="section-title" style="margin-top:4px">Admin earnings</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:24px">' +
-      '<div class="statcard"><div class="lbl">Commission earned (30%)</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
+      '<div class="statcard"><div class="lbl">Commission earned</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
       '<div class="statcard"><div class="lbl">Total commission earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
-    '<div class="notice">Ye <b>sirf har verified order par milne wala 30% commission</b> hye. Admin ke liye withdrawal ka option nahi hye.</div>';
+    '<div class="notice">Ye <b>sirf har verified order par milne wala commission</b> hye (Free 30% · Pro 23% · Business 15%). Admin ke liye withdrawal ka option nahi hye.</div>';
 }
 async function setWithdrawPassword(ev){
   ev.preventDefault();
@@ -1166,11 +1169,13 @@ async function submitWithdraw(ev){
 /* ================= SUBSCRIPTION PLANS ================= */
 const PLANS = {
   free:     {name:"Free",     notes:25,      price:0,   per:"forever", features:["25 notes upload limit","Sell & earn 70% per sale","Free forever"]},
-  pro:      {name:"Pro",      notes:300,     price:499, per:"/month",  features:["300 notes upload limit","Priority placement in browse","30 days validity"]},
-  business: {name:"Business", notes:1000000, price:999, per:"/month",  features:["Unlimited notes","Top placement in browse","30 days validity"]}
+  pro:      {name:"Pro",      notes:300,     price:499, per:"/month",  features:["300 notes upload limit","Sirf 23% commission — 77% aapka","Priority placement in browse","30 days validity"]},
+  business: {name:"Business", notes:1000000, price:999, per:"/month",  features:["Unlimited notes","Sirf 15% commission — 85% aapka","Top placement in browse","30 days validity"]}
 };
 function planName(k){ return (PLANS[k] || PLANS.free).name; }
-function planLimitTxt(n){ return n >= 1000000 ? "Unlimited" : String(n); }
+function planLimitTxt(n){ n = Number(n) || 0; return (n < 0 || n >= 1000000) ? "Unlimited" : String(n); }
+/* -1 (purana business bug) ya 1000000+ = unlimited — kabhi "full" nahi */
+function limitReached(used, limit){ const l = Number(limit) || 0; if(l < 0 || l >= 1000000) return false; return (Number(used) || 0) >= l; }
 VIEWS.plans = async function(){
   const u0 = requireLogin(); if(!u0) return;
   app.innerHTML = '<div class="loading">Loading plans…</div>';
@@ -1190,7 +1195,7 @@ VIEWS.plans = async function(){
     '</div>';
   }).join("");
   app.innerHTML = '<div class="section-title" style="margin-top:4px">Subscription plans</div>' +
-    '<div class="notice">Hit your note limit? Upgrade here — <b>70% of every sale still goes to your wallet</b>. Plans only raise how many notes you can upload.</div>' +
+    '<div class="notice">Hit your note limit? Upgrade here — plans raise your upload limit <b>aur commission bhi kam karte hain</b>: Pro par 23%, Business par sirf 15%.</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">' + cards + '</div>';
 };
 function subscribePlan(key){
@@ -1415,7 +1420,7 @@ async function adminChangePassword(){
   }catch(e){ m.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
 }
 
-/* ---- admin: payment orders (30% commission / 70% seller) ---- */
+/* ---- admin: payment orders (plan-based commission: Free 30% / Pro 23% / Business 15%) ---- */
 async function adminOrdersView(s){
   try{
     const {data: orders, error} = await db.from("orders").select("*").order("timestamp",{ascending:false}).limit(200);
@@ -1436,7 +1441,7 @@ async function adminOrdersView(s){
         '<button class="btn small danger" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'rejected\')">Reject</button>' : '<span style="color:var(--muted);font-size:12.5px">done</span>') +
       '</td></tr>';
     }).join("");
-    app.innerHTML = adminHead(s, "Verify each payment screenshot — <b>Verify & unlock</b> splits it: <b>70% to seller wallet</b>, <b>30% commission to your wallet</b>.") +
+    app.innerHTML = adminHead(s, "Verify each payment screenshot — <b>Verify & unlock</b> splits it by the seller's plan: <b>Free 30% · Pro 23% · Business 15%</b> commission to your wallet, baqi seller ko.") +
       adminTabs("orders") +
       (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Order</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">No orders yet. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load orders: '+esc(e.message)+'</div>'; }
@@ -1618,7 +1623,7 @@ const SP_STAGES = [
  '<div class="sp-stage"><div class="sp-kicker">TIMES UNIVERSITY MULTAN</div><div class="sp-brand2">TUM NOTES HUB</div><div class="sp-by">Students ka apna <b>notes marketplace</b></div><div class="sp-tag">BUY &middot; SELL &middot; EARN</div></div>',
  '<div class="sp-stage"><div class="sp-kicker">WHAT YOU CAN DO</div><div class="sp-feats">' +
  '<div class="sp-feat"><div class="ic">📚</div><div class="tx"><b>Buy &amp; sell</b> PDF notes and handwritten photo galleries</div></div>' +
- '<div class="sp-feat"><div class="ic">💰</div><div class="tx">Sellers keep <b>70% of every sale</b> &mdash; straight to wallet</div></div>' +
+ '<div class="sp-feat"><div class="ic">💰</div><div class="tx">Sellers keep <b>up to 85% of every sale</b> &mdash; straight to wallet</div></div>' +
  '<div class="sp-feat"><div class="ic">🔐</div><div class="tx"><b>Secure Google login</b> &mdash; your data stays with you</div></div>' +
  '</div></div>'
 ];

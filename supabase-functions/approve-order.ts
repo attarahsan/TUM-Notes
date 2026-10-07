@@ -49,14 +49,19 @@ serve(async (req) => {
     }
 
     const amount = Number(o.amount) || 0;
-    const commission = Math.round(amount * 0.30);
+    // commission depends on the seller's CURRENT plan (checked at approval time)
+    const { data: s } = await supa.from("users").select("wallet,total_earnings,plan,plan_expires").eq("uid", o.seller_id).single();
+    let splan = (s as any)?.plan || "free";
+    if ((s as any)?.plan_expires && Number((s as any).plan_expires) < Date.now() && splan !== "free") splan = "free"; // expired → free rate
+    const RATES: Record<string, number> = { business: 0.15, pro: 0.23 }; // free (default): 0.30
+    const rate = RATES[splan] ?? 0.30;
+    const commission = Math.round(amount * rate);
     const earning = amount - commission;
 
     const { error: oErr } = await supa.from("orders")
       .update({ status: "approved", commission, seller_earning: earning }).eq("order_id", order_id);
     if (oErr) return J({ error: oErr.message }, 500);
 
-    const { data: s } = await supa.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).single();
     if (s) await supa.from("users").update({
       wallet: (Number(s.wallet) || 0) + earning,
       total_earnings: (Number(s.total_earnings) || 0) + earning,
