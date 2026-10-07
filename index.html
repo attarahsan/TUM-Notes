@@ -38,6 +38,9 @@ header.site{background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-b
 .nav-links button{background:none;border:none;padding:9px 15px;border-radius:10px;font-size:14.5px;cursor:pointer;color:var(--ink);font-weight:600;font-family:inherit}
 .nav-links button:hover{background:var(--brand-soft)}
 .nav-links button.active{background:var(--brand);color:#fff}
+.langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-left:6px}
+.langtoggle button{padding:7px 10px!important;font-size:12.5px!important;border-radius:0!important;color:var(--muted)}
+.langtoggle button.on{background:var(--brand);color:#fff}
 .live-dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--green)}
 .live-dot i{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -261,6 +264,7 @@ img{max-width:100%;height:auto}
       <button data-nav="notifications" id="notifBtn" onclick="go('notifications')" style="display:none;position:relative">🔔<span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;line-height:18px;text-align:center;padding:0 4px"></span></button>
       <button data-nav="wallet" id="walletBtn" onclick="go('wallet')" style="display:none">Wallet</button>
       <button data-nav="admin" id="adminBtn" onclick="go('admin')" style="display:none">Admin</button>
+      <span class="langtoggle" title="Language / زبان"><button id="langUr" onclick="setLang('ur')">UR</button><button id="langEn" onclick="setLang('en')">EN</button></span>
       <span id="userBox" style="display:flex;gap:8px;align-items:center"></span>
     </div>
   </div>
@@ -285,6 +289,110 @@ const MIN_WITHDRAWAL = 300;
 const ADMIN_COMMISSION = 0.30;
 const COMMISSION_RATES = {free: 0.30, pro: 0.23, business: 0.15}; // admin ka cut — baqi seller ka
 function commissionRate(plan){ return COMMISSION_RATES[plan] || 0.30; }
+
+/* ================= LANGUAGE (English / Roman Urdu) ================= */
+let APP_LANG = "ur"; // 'ur' = Roman Urdu (default), 'en' = English
+try{ APP_LANG = localStorage.getItem("tum_lang") || "ur"; }catch(e){ APP_LANG = "ur"; }
+if(APP_LANG !== "en") APP_LANG = "ur";
+const I18N_EN = {
+  "Aapka subscription expire ho gaya — wapas Free plan par": "Your subscription has expired — back to the Free plan",
+  "Ye <b>admin account</b> hye. Login mukammal karne ke liye admin password dalein.": "This is an <b>admin account</b>. Enter the admin password to complete login.",
+  "❌ Ghalat password — dobara try karein": "❌ Wrong password — please try again",
+  "Admin password abhi set nahi hua": "Admin password is not set yet",
+  "Login failed: Google se wapas to aaye lekin session nahi ban saka": "Login failed: returned from Google but no session was created",
+  ". Dobara try karein.": ". Please try again.",
+  "❌ Ghalat password — admin login nahi hua": "❌ Wrong password — admin login failed",
+  "✅ Ye note aap khareed chuke hain — kisi page par tap karein, fullscreen khulega!": "✅ You have bought this note — tap any page to open it fullscreen!",
+  "✅ Ye note aap khareed chuke hain — enjoy!": "✅ You have bought this note — enjoy!",
+  "⬇ Download (aapke naam ke watermark ke saath)": "⬇ Download (with your name as watermark)",
+  "🔒 Har page par <b>aapke naam/email ka watermark</b> laga hye. Screenshot ko 100% rokna kisi website ke liye mumkin nahi — lekin watermark ki wajah se leak trace ho jayega.": "🔒 Every page has a <b>watermark with your name/email</b>. No website can 100% stop screenshots — but the watermark lets leaks be traced.",
+  "👀 Preview — pehle pages": "👀 Preview — first pages",
+  "🔒 Preview pages par aapke naam ka watermark hye. Poori file unlock ke baad milegi.": "🔒 Preview pages carry your name's watermark. You will get the full file after unlocking.",
+  "🕵️ Yahan <b>sab anonymous</b> hain — kisi ko nahi pata chalega kon likh raha hye. Notes request karein, e.g. <i>\"Mujhe Physics Ch.4 ke neat notes chahiye\"</i> — jis ke paas honge wo note ka title bata dega.": "🕵️ Everyone here is <b>anonymous</b> — no one will know who is writing. Request notes, e.g. <i>\"I need neat notes for Physics Ch.4\"</i> — whoever has them will share the note title.",
+  "Apna message likhein…": "Write your message…",
+  "⚠️ Galat zaban ya spam par admin message delete kar sakta hye.": "⚠️ The admin may delete abusive or spam messages.",
+  "Abhi koi message nahi — pehla message aap bhejein! 👋": "No messages yet — send the first one! 👋",
+  "Message 500 characters se zyada nahi ho sakta": "Message cannot be longer than 500 characters",
+  "Thoda rukein — 3 second me 1 message ⏳": "Please wait — 1 message per 3 seconds ⏳",
+  "aap khud apni price set karein": "set the price yourself",
+  " photo(s) selected — apni price neeche wale box me khud set karein.": " photo(s) selected — set your price in the box below yourself.",
+  "Apna referral link doston ko bhejo. Jab aapka referred dost <b>notes sale karega</b> to har sale par <b>10% aapke wallet</b> me aayega — <b>hamesha ke liye!</b><br><span style=\"font-size:13px\">Split: sale karne wale ko 70% · aapko 10% · platform ko 20% (ye 10% platform ke hisse me se kat-ta hye, seller ke 70% me se nahi).</span>": "Share your referral link with friends. When your referred friend <b>sells notes</b>, <b>10% of every sale</b> will come to your wallet — <b>forever!</b><br><span style=\"font-size:13px\">Split: seller gets 70% · you get 10% · platform gets 20% (this 10% is cut from the platform's share, not the seller's 70%).</span>",
+  "Referral code abhi tayyar nahi — page reload karein.": "Referral code is not ready yet — please reload the page.",
+  ". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b>": ". The money will be sent to your chosen method after admin approval. <b>Withdrawal password is required.</b>",
+  "Safety ke liye pehle apna <b>withdrawal password</b> set karein. Iske baad <b>har withdraw se pehle</b> yehi password manga jayega.": "For safety, first set your <b>withdrawal password</b>. After that, <b>this password will be asked before every withdrawal</b>.",
+  "New withdrawal password (kam az kam 6 characters) *": "New withdrawal password (at least 6 characters) *",
+  "Ye <b>sirf har verified order par milne wala commission</b> hye (Free 30% · Pro 23% · Business 15%). Admin ke liye withdrawal ka option nahi hye.": "This is <b>commission earned only on verified orders</b> (Free 30% · Pro 23% · Business 15%). There is no withdrawal option for the admin.",
+  "Password kam az kam 6 characters ka ho": "Password must be at least 6 characters long",
+  "Account / mobile number ghalat hye.": "Account / mobile number is incorrect.",
+  "⚡ Photos compress + upload ho rahi hain (0/": "⚡ Compressing + uploading photos (0/",
+  "Hit your note limit? Upgrade here — plans raise your upload limit <b>aur commission bhi kam karte hain</b>: Pro par 23%, Business par sirf 15%.": "Hit your note limit? Upgrade here — plans raise your upload limit <b>and also reduce commission</b>: 23% on Pro, only 15% on Business.",
+  "⏳ <b>Har plan apni activation date se poore 30 din chalega.</b> Agar aap Pro ke baad Business lete hain to dono apni-apni date par expire honge — pehle wala plan foran khatam nahi hoga.": "⏳ <b>Each plan runs a full 30 days from its activation date.</b> If you buy Business after Pro, both expire on their own dates — the earlier plan does not end immediately.",
+  "❌ Ye note pehle hi becha ja chuka hai — delete nahi ho sakta (buyers ka record kharab ho jayega). Sirf Reject karo taake listing se hat jaye.": "❌ This note has already been sold — it cannot be deleted (it would break buyers' records). Just Reject it to remove it from the listing.",
+  "Is note ko PERMANENTLY delete karna hai? Ye wapas nahi aayega.": "Permanently delete this note? It will not come back.",
+  "Kaun aaya, kis ne sign in kiya, aur kis ke notes bike — sab kuch yahan.": "Who visited, who signed in, and whose notes sold — everything is here.",
+  "💰 Notes sold (kis ne beche)": "💰 Notes sold (who sold them)",
+  "Jab bhi admin Gmail se login hoga, pehle ye password manga jayega.": "Whenever the admin logs in with Gmail, this password will be asked first.",
+  "<b style=\"color:var(--green)\">SET ✅</b> — admin login par password required hye": "<b style=\"color:var(--green)\">SET ✅</b> — password required on admin login",
+  "<b style=\"color:var(--red)\">NOT SET ❌</b> — foran set karein": "<b style=\"color:var(--red)\">NOT SET ❌</b> — set it right away",
+  "New admin password (kam az kam 8 characters)": "New admin password (at least 8 characters)",
+  "Password kam az kam 8 characters ka ho": "Password must be at least 8 characters long",
+  "✅ Password save ho gaya — agli admin login se yehi lagega": "✅ Password saved — it will apply from the next admin login",
+  "Verify each payment screenshot — <b>Verify & unlock</b> splits it by the seller's plan: <b>Free 30% · Pro 23% · Business 15%</b> commission to your wallet, baqi seller ko.": "Verify each payment screenshot — <b>Verify & unlock</b> splits it by the seller's plan: <b>Free 30% · Pro 23% · Business 15%</b> commission to your wallet, the rest to the seller.",
+  "Anonymous chat ki moderation — galat message <b>delete</b> karein. Sab anonymous nazar aayenge.": "Anonymous chat moderation — <b>delete</b> abusive messages. Everyone appears anonymous.",
+  "Koi message nahi.": "No messages.",
+  "Ye message delete kar dein?": "Delete this message?",
+  "🎉 Note live ho gaya!": "🎉 Note is now live!",
+  "Aapka note": "Your note",
+  "\" ab marketplace par bikne ke liye tayyar hye.": "\" is now ready to sell on the marketplace.",
+  "⚠️ Note reject ho gaya": "⚠️ Note rejected",
+  "\" admin ne reject kar diya.": "\" was rejected by the admin.",
+  " ka note unlock ho gaya. Kholo aur parho!": " note unlocked. Open and read!",
+  "💰 Sale ho gayi!": "💰 Sale completed!",
+  " aapke wallet main add ho gaye.": " have been added to your wallet.",
+  "Aapki payment verify nahi ho saki. Support se rabta karein.": "Your payment could not be verified. Please contact support.",
+  "🏧 Withdrawal bhej di gayi": "🏧 Withdrawal sent",
+  " aapke account par bhej diye gaye.": " have been sent to your account.",
+  "↩️ Withdrawal wapas": "↩️ Withdrawal returned",
+  " aapke wallet main wapas aa gaye.": " have been returned to your wallet.",
+  "Subscription verify nahi ho saki.": "Subscription could not be verified.",
+  "Students ka apna <b>notes marketplace</b>": "Students' own <b>notes marketplace</b>",
+  "♥ Wishlist main add ho gaya": "♥ Added to wishlist",
+  "Abhi khaali hye — notes par ♥ dabao taake baad main aasani se mil jayen.": "Still empty — tap ♥ on notes to find them easily later.",
+  "Koi approved note nahi mila.": "No approved notes found.",
+  "Koi notification nahi — jab aapki sale hogi ya order approve hoga to yahan khabar milegi. 🔔": "No notifications — when you make a sale or an order is approved, you'll be notified here. 🔔",
+  "Copy karo:": "Copy:",
+  "Abhi koi note upload nahi kiya — <b>Sell</b> par jao aur pehla note lagao! 🚀": "You haven't uploaded any notes yet — go to <b>Sell</b> and post your first note! 🚀",
+  "📖 Free preview — pehle ": "📖 Free preview — first ",
+  " pages (poora note unlock karne ke baad)": " pages (after unlocking the full note)",
+  "Preview load nahi ho saka.": "Could not load preview.",
+  "⏳ Aapke naam ka watermark lag raha hye…": "⏳ Applying your name watermark…",
+  "✅ Download ho gaya — har page par aapka naam watermark hye.": "✅ Downloaded — every page carries your name watermark.",
+  "📲 TUM Notes app install karo": "📲 Install the TUM Notes app",
+  "Home screen se seedha kholo — tez aur full-screen": "Open it straight from your home screen — fast and full-screen",
+  "Wapas aane par dobara dikhega": "It will show again when you come back",
+  "Fullscreen dekhein": "View fullscreen",
+  "Chat load nahi ho saka: ": "Could not load chat: ",
+  "e.g. 0300-1234567 ya IBAN": "e.g. 0300-1234567 or IBAN",
+  "Aapka ": "Your ",
+  " plan activate ho gaya. Mubarak!": " plan activated. Congratulations!",
+  "✅ Withdrawal password set ho gaya": "✅ Withdrawal password set",
+  "❌ Order reject ho gaya": "❌ Order rejected",
+  "📋 Referral link copy ho gaya!": "📋 Referral link copied!",
+};
+function T(s){
+  if(APP_LANG === "en" && typeof s === "string" && Object.prototype.hasOwnProperty.call(I18N_EN, s)) return I18N_EN[s];
+  return s;
+}
+function setLang(l){
+  APP_LANG = (l === "en") ? "en" : "ur";
+  try{ localStorage.setItem("tum_lang", APP_LANG); }catch(e){}
+  location.reload();
+}
+function paintLangToggle(){
+  const ur = document.getElementById("langUr"), en = document.getElementById("langEn");
+  if(ur) ur.classList.toggle("on", APP_LANG === "ur");
+  if(en) en.classList.toggle("on", APP_LANG === "en");
+}
 function myCommission(){ const me = currentUser(); let p = (me && me.plan) || "free"; if(me && me.plan_expires && Number(me.plan_expires) < Date.now() && p !== "free") p = "free"; return {plan: p, rate: commissionRate(p), earnPct: Math.round((1 - commissionRate(p)) * 100)}; }
 const WITHDRAW_METHODS = ["Easypaisa","JazzCash","Meezan Bank","HBL","UBL"];
 
@@ -309,7 +417,7 @@ function galleryHtmlFull(imgs){
   window._fullImgs = imgs;
   return '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' +
     imgs.map(function(u, i){
-      return '<div class="wm-wrap" onclick="openPageViewer('+i+')" style="cursor:zoom-in" title="Fullscreen dekhein"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy" draggable="false"></div>';
+      return '<div class="wm-wrap" onclick="openPageViewer('+i+')" style="cursor:zoom-in" title="'+T("Fullscreen dekhein")+'"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy" draggable="false"></div>';
     }).join("") + '</div>';
 }
 function openPageViewer(i){
@@ -390,7 +498,7 @@ document.addEventListener("copy", function(e){
 (function(){
   const v = document.createElement("div");
   v.id = "veil";
-  v.innerHTML = '<div style="text-align:center;padding:24px"><div style="font-size:46px">🔒</div><div style="font-size:19px;font-weight:800;color:#fff;margin-top:8px">Content protected</div><div style="color:#9aa3c7;margin-top:6px;font-size:14px">Wapas aane par dobara dikhega</div></div>';
+  v.innerHTML = '<div style="text-align:center;padding:24px"><div style="font-size:46px">🔒</div><div style="font-size:19px;font-weight:800;color:#fff;margin-top:8px">Content protected</div><div style="color:#9aa3c7;margin-top:6px;font-size:14px">"+T("Wapas aane par dobara dikhega")+"</div></div>';
   document.body.appendChild(v);
   document.addEventListener("visibilitychange", function(){ v.classList.toggle("show", !!document.hidden); });
   window.addEventListener("pagehide", function(){ v.classList.add("show"); });
@@ -462,7 +570,7 @@ async function refreshWallet(){
           if(!rpErr && rp && !rp.error && rp.plan){
             const wasActive = r.plan !== "free" && (r.plan_expires||0) > Date.now();
             r.plan = rp.plan; r.note_limit = rp.note_limit; r.plan_expires = rp.plan_expires;
-            if(wasActive && rp.plan === "free") toast("Aapka subscription expire ho gaya — wapas Free plan par");
+            if(wasActive && rp.plan === "free") toast(T("Aapka subscription expire ho gaya — wapas Free plan par"));
           }
         }catch(e){ /* function purana ho to purani value rehne do */ }
       }
@@ -524,7 +632,7 @@ function promptAdminPassword(urow){
   return new Promise(function(resolve){
     const ov = document.createElement("div");
     ov.style.cssText = "position:fixed;inset:0;z-index:2000;background:rgba(10,10,25,.72);display:flex;align-items:center;justify-content:center;padding:20px";
-    ov.innerHTML = '<div class="fcard" style="max-width:380px;width:100%;margin:0"><h2>🔐 Admin verification</h2><div class="sub">Ye <b>admin account</b> hye. Login mukammal karne ke liye admin password dalein.</div><div id="ap_msg"></div><div class="field"><label>Admin password</label><input id="ap_pass" type="password" placeholder="••••••••" autocomplete="current-password"></div><button class="btn" id="ap_ok" style="width:100%">Verify & login</button><button class="btn ghost" id="ap_cancel" style="width:100%;margin-top:8px">Cancel</button></div>';
+    ov.innerHTML = '<div class="fcard" style="max-width:380px;width:100%;margin:0"><h2>🔐 Admin verification</h2><div class="sub">"+T("Ye <b>admin account</b> hye. Login mukammal karne ke liye admin password dalein.")+"</div><div id="ap_msg"></div><div class="field"><label>Admin password</label><input id="ap_pass" type="password" placeholder="••••••••" autocomplete="current-password"></div><button class="btn" id="ap_ok" style="width:100%">Verify & login</button><button class="btn ghost" id="ap_cancel" style="width:100%;margin-top:8px">Cancel</button></div>';
     document.body.appendChild(ov);
     const done = function(ok){ try{ ov.remove(); }catch(e){} resolve(ok); };
     document.getElementById("ap_cancel").onclick = function(){ done(false); };
@@ -537,7 +645,7 @@ function promptAdminPassword(urow){
       try{
         const good = await verifyAdminPassword(v, urow);
         if(good){ done(true); }
-        else{ m.innerHTML = '<div class="err">❌ Ghalat password — dobara try karein</div>'; okBtn.disabled = false; okBtn.textContent = "Verify & login"; }
+        else{ m.innerHTML = '<div class="err">"+T("❌ Ghalat password — dobara try karein")+"</div>'; okBtn.disabled = false; okBtn.textContent = "Verify & login"; }
       }catch(e){ m.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; okBtn.disabled = false; okBtn.textContent = "Verify & login"; }
     };
     document.getElementById("ap_pass").onkeydown = function(e){ if(e.key === "Enter") okBtn.click(); };
@@ -548,7 +656,7 @@ async function verifyAdminPassword(plain, urow){
   const {data, error} = await db.from("users").select("admin_pass_hash").eq("uid", urow.uid).limit(1);
   if(error) throw error;
   const h = data && data[0] && data[0].admin_pass_hash;
-  if(!h) throw new Error("Admin password abhi set nahi hua");
+  if(!h) throw new Error(T("Admin password abhi set nahi hua"));
   return (await sha256hex("tum-admin::" + plain)) === h;
 }
 async function handleGoogleSession(){
@@ -578,7 +686,7 @@ async function handleGoogleSession(){
     const session = sess && sess.session;
     if(!session || !session.user){
       if(code){
-        const msg = "Login failed: Google se wapas to aaye lekin session nahi ban saka" + (codeErr ? " (" + (codeErr.message || codeErr) + ")" : "") + ". Dobara try karein.";
+        const msg = T("Login failed: Google se wapas to aaye lekin session nahi ban saka") + (codeErr ? " (" + (codeErr.message || codeErr) + ")" : "") + T(". Dobara try karein.");
         toast(msg); showAuthBanner(msg); console.error(msg, codeErr);
       }
       return;
@@ -609,7 +717,7 @@ async function handleGoogleSession(){
           try{ await db.auth.signOut(); }catch(e){}
           localStorage.removeItem("tum_user");
           updateUserBox();
-          toast("❌ Ghalat password — admin login nahi hua");
+          toast(T("❌ Ghalat password — admin login nahi hua"));
           return;
         }
       }
@@ -814,10 +922,10 @@ function showUnlockedContent(n, area){
   if(n.note_type === "images"){
     const gal = document.getElementById("noteGallery");
     if(gal){ gal.innerHTML = galleryHtmlFull(imageList(n)); applyWatermarks(); }
-    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — kisi page par tap karein, fullscreen khulega!</div>';
+    if(area) area.innerHTML = '<div class="notice ok">"+T("✅ Ye note aap khareed chuke hain — kisi page par tap karein, fullscreen khulega!")+"</div>';
   }else{
-    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — enjoy!</div>' +
-      (n.file_url ? '<button class="btn" onclick="downloadStampedPdf('+n.note_id+')">⬇ Download (aapke naam ke watermark ke saath)</button> ' +
+    if(area) area.innerHTML = '<div class="notice ok">"+T("✅ Ye note aap khareed chuke hain — enjoy!")+"</div>' +
+      (n.file_url ? '<button class="btn" onclick="downloadStampedPdf('+n.note_id+')">"+T("⬇ Download (aapke naam ke watermark ke saath)")+"</button> ' +
                     '<a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open original</a><div id="stampMsg" style="margin-top:10px"></div>'
                   : '<div class="notice warn">File not attached by seller yet.</div>');
   }
@@ -839,10 +947,10 @@ function showUnlockForm(){
     const imgs = imageList(n);
     previewHtml = '<div class="section-title" style="font-size:17px">👀 Poora preview — saare ' + imgs.length + ' pages</div>' +
       '<div id="buyPreview">' + galleryHtml(imgs, true) + '</div>' +
-      '<div class="notice" style="margin-top:8px">🔒 Har page par <b>aapke naam/email ka watermark</b> laga hye. Screenshot ko 100% rokna kisi website ke liye mumkin nahi — lekin watermark ki wajah se leak trace ho jayega.</div>';
+      '<div class="notice" style="margin-top:8px">"+T("🔒 Har page par <b>aapke naam/email ka watermark</b> laga hye. Screenshot ko 100% rokna kisi website ke liye mumkin nahi — lekin watermark ki wajah se leak trace ho jayega.")+"</div>';
   }else if(n.file_url){
-    previewHtml = '<div class="section-title" style="font-size:17px">👀 Preview — pehle pages</div><div id="buyPdfPreview"></div>' +
-      '<div class="notice" style="margin-top:8px">🔒 Preview pages par aapke naam ka watermark hye. Poori file unlock ke baad milegi.</div>';
+    previewHtml = '<div class="section-title" style="font-size:17px">"+T("👀 Preview — pehle pages")+"</div><div id="buyPdfPreview"></div>' +
+      '<div class="notice" style="margin-top:8px">"+T("🔒 Preview pages par aapke naam ka watermark hye. Poori file unlock ke baad milegi.")+"</div>';
   }
   document.getElementById("unlockArea").innerHTML =
     '<div class="notice">Paying as <b>'+esc(u.name)+'</b> ('+esc(u.email||"")+')</div>' +
@@ -918,18 +1026,18 @@ VIEWS.chat = async function(){
   if(chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; }
   try{ const r = await db.rpc("my_anon_token"); myChatToken = r.data || null; }catch(e){ myChatToken = null; }
   app.innerHTML = '<div class="section-title" style="margin-top:4px">💬 Anonymous chat</div>' +
-    '<div class="sub" style="margin-bottom:12px">🕵️ Yahan <b>sab anonymous</b> hain — kisi ko nahi pata chalega kon likh raha hye. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — jis ke paas honge wo note ka title bata dega.</div>' +
+    '<div class="sub" style="margin-bottom:12px">"+T("🕵️ Yahan <b>sab anonymous</b> hain — kisi ko nahi pata chalega kon likh raha hye. Notes request karein, e.g. <i>\"Mujhe Physics Ch.4 ke neat notes chahiye\"</i> — jis ke paas honge wo note ka title bata dega.")+"</div>' +
     '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
-    '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="Apna message likhein…" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
-    '<div class="sub" style="margin-top:8px">⚠️ Galat zaban ya spam par admin message delete kar sakta hye.</div>';
+    '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="'+T("Apna message likhein…")+'" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
+    '<div class="sub" style="margin-top:8px">"+T("⚠️ Galat zaban ya spam par admin message delete kar sakta hye.")+"</div>';
   const box = document.getElementById("chatBox");
   try{
     const {data, error} = await db.from("chat_messages").select("id,sender_id,text,created_at").order("created_at",{ascending:false}).limit(60);
     if(error) throw error;
     const msgs = (data || []).reverse();
-    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u, false); }).join("") : '<div class="empty">Abhi koi message nahi — pehla message aap bhejein! 👋</div>';
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u, false); }).join("") : '<div class="empty">"+T("Abhi koi message nahi — pehla message aap bhejein! 👋")+"</div>';
     box.scrollTop = box.scrollHeight;
-  }catch(e){ box.innerHTML = '<div class="err">Chat load nahi ho saka: ' + esc(e.message) + '</div>'; return; }
+  }catch(e){ box.innerHTML = '<div class="err">'+T("Chat load nahi ho saka: ")+esc(e.message)+'</div>'; return; }
   chatSub = db.channel("chat-room")
     .on("postgres_changes", {event:"INSERT", schema:"public", table:"chat_messages"}, function(p){
       if(currentView !== "chat") return;
@@ -946,12 +1054,12 @@ async function sendChatMsg(ev){
   const inp = document.getElementById("chatInp");
   const t = (inp.value || "").trim();
   if(!t) return;
-  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  if(t.length > 500){ toast(T("Message 500 characters se zyada nahi ho sakta")); return; }
   const now = Date.now();
-  if(now - lastChatSent < 3000){ toast("Thoda rukein — 3 second me 1 message ⏳"); return; }
+  if(now - lastChatSent < 3000){ toast(T("Thoda rukein — 3 second me 1 message ⏳")); return; }
   lastChatSent = now; inp.value = "";
   const {error} = await db.rpc("send_chat_message", {p_text: t});
-  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? "Thoda rukein — 3 second me 1 message ⏳" : error.message)); lastChatSent = 0; }
+  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? T("Thoda rukein — 3 second me 1 message ⏳") : error.message)); lastChatSent = 0; }
 }
 
 /* ================= SELL ================= */
@@ -1032,7 +1140,7 @@ async function sellImgForm(){
   const dis = lim.full ? "disabled" : "";
   app.innerHTML = '<button class="back" onclick="go(\'sell\')">← Back</button>' +
     '<form class="fcard" onsubmit="submitImgNote(event)"><h2>🖼️ Sell gallery notes</h2>' +
-    '<div class="sub">Selling as <b>' + esc(u.name) + '</b>. Attach 1–50 photos — <b>aap khud apni price set karein</b>.</div>' +
+    '<div class="sub">Selling as <b>' + esc(u.name) + '</b>. Attach 1–50 photos — <b>"+T("aap khud apni price set karein")+</b>.</div>' +
     limitNotice(lim) + '<div id="sell_msg"></div>' +
     '<div class="field"><label>Note title *</label><input id="s_title" required placeholder="e.g. Physics Ch.4 — Neat handwritten notes" ' + dis + '></div>' +
     '<div class="frow2"><div class="field"><label>Subject *</label><input id="s_subject" required placeholder="e.g. Physics" ' + dis + '></div>' +
@@ -1052,7 +1160,7 @@ function updImgPrice(){
   const n = inp.files.length;
   box.innerHTML = n === 0 ? '<div class="notice">Select between 1 and 50 photos.</div>'
     : n > 50 ? '<div class="notice warn">Too many! Maximum 50 photos — you selected ' + n + '. Please remove some.</div>'
-    : '<div class="notice ok">📸 ' + n + ' photo(s) selected — apni price neeche wale box me khud set karein.</div>';
+    : '<div class="notice ok">📸 ' + n + '"+T(" photo(s) selected — apni price neeche wale box me khud set karein.")+</div>';
 }
 async function submitImgNote(ev){
   ev.preventDefault();
@@ -1070,7 +1178,7 @@ async function submitImgNote(ev){
     // fast uploads: compress on-device + 4 parallel uploads with live progress
     const urls = new Array(files.length);
     let done = 0;
-    msg.innerHTML = "⚡ Photos compress + upload ho rahi hain (0/" + files.length + ")…";
+    msg.innerHTML = T("⚡ Photos compress + upload ho rahi hain (0/") + files.length + ")…";
     let idx = 0;
     async function upWorker(){
       while(idx < files.length){
@@ -1154,25 +1262,25 @@ VIEWS.wallet = async function(){
     '</div>' +
     '<div class="notice">When your note sells, <b>'+myCommission().earnPct+'% goes to your wallet</b> and '+Math.round(myCommission().rate*100)+'% is the platform commission'+(myCommission().plan!=="free"?" ("+planName(myCommission().plan)+" plan)":"")+"</div>" +
     '<div class="fcard" style="margin-bottom:24px;border:2px dashed var(--brand)"><h2>🎁 Invite & earn — 10% lifetime commission</h2>' +
-    '<div class="sub">Apna referral link doston ko bhejo. Jab aapka referred dost <b>notes sale karega</b> to har sale par <b>10% aapke wallet</b> me aayega — <b>hamesha ke liye!</b><br><span style="font-size:13px">Split: sale karne wale ko 70% · aapko 10% · platform ko 20% (ye 10% platform ke hisse me se kat-ta hye, seller ke 70% me se nahi).</span></div>' +
+    '<div class="sub">"+T("Apna referral link doston ko bhejo. Jab aapka referred dost <b>notes sale karega</b> to har sale par <b>10% aapke wallet</b> me aayega — <b>hamesha ke liye!</b><br><span style=\"font-size:13px\">Split: sale karne wale ko 70% · aapko 10% · platform ko 20% (ye 10% platform ke hisse me se kat-ta hye, seller ke 70% me se nahi).</span>")+"</div>' +
     (me.referral_code
       ? '<div class="frow2"><div class="field"><label>Your referral code</label><input value="'+esc(me.referral_code)+'" readonly onclick="this.select()"></div>' +
         '<div class="field"><label>Share link</label><input value="'+esc(myReferralLink())+'" readonly onclick="this.select()"></div></div>' +
         '<button class="btn" onclick="copyReferral()">📋 Copy referral link</button>'
-      : '<div class="notice warn">Referral code abhi tayyar nahi — page reload karein.</div>') + '</div>' +
+      : '<div class="notice warn">"+T("Referral code abhi tayyar nahi — page reload karein.")+"</div>') + '</div>' +
     (hasWp ?
       '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
-      '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+'. Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b></div><div id="w_msg"></div>' +
+      '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+'"+T(". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b>")+</div><div id="w_msg"></div>' +
       '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
       '<div class="field"><label>Withdraw method *</label><select id="w_method" required>' + WITHDRAW_METHODS.map(function(m){ return '<option'+(m===(me.withdraw_method||"Easypaisa")?' selected':"")+'>'+m+'</option>'; }).join("") + '</select></div></div>' +
       '<div class="frow2"><div class="field"><label>Account title (naam) *</label><input id="w_title" required placeholder="e.g. Ahsan Abid" value="'+esc(me.account_title||"")+'"></div>' +
-      '<div class="field"><label>Account / mobile number *</label><input id="w_acct" required placeholder="e.g. 0300-1234567 ya IBAN" value="'+esc(me.account_number||me.easypaisa_number||"")+'"></div></div>' +
+      '<div class="field"><label>Account / mobile number *</label><input id="w_acct" required placeholder="'+T("e.g. 0300-1234567 ya IBAN")+'" value="'+esc(me.account_number||me.easypaisa_number||"")+'"></div></div>' +
       '<div class="field"><label>Withdrawal password *</label><input id="w_pass" type="password" required placeholder="••••••" autocomplete="current-password"></div>' +
       '<button class="btn" style="width:100%">Request withdrawal</button></form>'
     :
       '<form class="fcard" onsubmit="setWithdrawPassword(event)" style="margin-bottom:24px"><h2>🔐 Set withdrawal password</h2>' +
-      '<div class="sub">Safety ke liye pehle apna <b>withdrawal password</b> set karein. Iske baad <b>har withdraw se pehle</b> yehi password manga jayega.</div><div id="wp_msg"></div>' +
-      '<div class="field"><label>New withdrawal password (kam az kam 6 characters) *</label><input id="wp_new" type="password" required placeholder="••••••" autocomplete="new-password"></div>' +
+      '<div class="sub">"+T("Safety ke liye pehle apna <b>withdrawal password</b> set karein. Iske baad <b>har withdraw se pehle</b> yehi password manga jayega.")+"</div><div id="wp_msg"></div>' +
+      '<div class="field"><label>"+T("New withdrawal password (kam az kam 6 characters) *")+"</label><input id="wp_new" type="password" required placeholder="••••••" autocomplete="new-password"></div>' +
       '<button class="btn" style="width:100%">Set password</button></form>'
     ) +
     '<div class="section-title" style="font-size:18px">Withdrawal history</div>' +
@@ -1187,21 +1295,21 @@ function adminWalletView(me){
       '<div class="statcard"><div class="lbl">Commission earned</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
       '<div class="statcard"><div class="lbl">Total commission earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
-    '<div class="notice">Ye <b>sirf har verified order par milne wala commission</b> hye (Free 30% · Pro 23% · Business 15%). Admin ke liye withdrawal ka option nahi hye.</div>';
+    '<div class="notice">"+T("Ye <b>sirf har verified order par milne wala commission</b> hye (Free 30% · Pro 23% · Business 15%). Admin ke liye withdrawal ka option nahi hye.")+"</div>';
 }
 async function setWithdrawPassword(ev){
   ev.preventDefault();
   const me = currentUser(); if(!me) return;
   const v = document.getElementById("wp_new").value;
   const m = document.getElementById("wp_msg");
-  if(!v || v.length < 6){ m.innerHTML = '<div class="err">Password kam az kam 6 characters ka ho</div>'; return; }
+  if(!v || v.length < 6){ m.innerHTML = '<div class="err">"+T("Password kam az kam 6 characters ka ho")+"</div>'; return; }
   try{
     const h = await sha256hex("tum-withdraw::" + v);
     const {error} = await db.from("users").update({withdraw_pass_hash: h}).eq("uid", me.uid);
     if(error) throw error;
     me.withdraw_pass_hash = h;
     localStorage.setItem("tum_user", JSON.stringify(me));
-    toast("✅ Withdrawal password set ho gaya");
+    toast(T("✅ Withdrawal password set ho gaya"));
     VIEWS.wallet();
   }catch(e){ m.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
@@ -1217,7 +1325,7 @@ async function submitWithdraw(ev){
   if(!amount || amount < MIN_WITHDRAWAL){ msg.innerHTML = '<div class="notice warn">Minimum withdrawal is Rs '+MIN_WITHDRAWAL+'.</div>'; return; }
   if(WITHDRAW_METHODS.indexOf(method) < 0){ msg.innerHTML = '<div class="notice warn">Please choose a withdraw method.</div>'; return; }
   if(!acctTitle){ msg.innerHTML = '<div class="notice warn">Please enter the account title (naam).</div>'; return; }
-  if(acct.length < 10){ msg.innerHTML = '<div class="notice warn">Account / mobile number ghalat hye.</div>'; return; }
+  if(acct.length < 10){ msg.innerHTML = '<div class="notice warn">"+T("Account / mobile number ghalat hye.")+"</div>'; return; }
   if(!pw){ msg.innerHTML = '<div class="notice warn">Withdrawal password dalein.</div>'; return; }
   msg.innerHTML = "Processing…";
   try{
@@ -1261,8 +1369,8 @@ VIEWS.plans = async function(){
     '</div>';
   }).join("");
   app.innerHTML = '<div class="section-title" style="margin-top:4px">Subscription plans</div>' +
-    '<div class="notice">Hit your note limit? Upgrade here — plans raise your upload limit <b>aur commission bhi kam karte hain</b>: Pro par 23%, Business par sirf 15%.</div>' +
-    '<div class="notice">⏳ <b>Har plan apni activation date se poore 30 din chalega.</b> Agar aap Pro ke baad Business lete hain to dono apni-apni date par expire honge — pehle wala plan foran khatam nahi hoga.</div>' +
+    '<div class="notice">"+T("Hit your note limit? Upgrade here — plans raise your upload limit <b>aur commission bhi kam karte hain</b>: Pro par 23%, Business par sirf 15%.")+"</div>' +
+    '<div class="notice">"+T("⏳ <b>Har plan apni activation date se poore 30 din chalega.</b> Agar aap Pro ke baad Business lete hain to dono apni-apni date par expire honge — pehle wala plan foran khatam nahi hoga.")+"</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">' + cards + '</div>';
 };
 function subscribePlan(key){
@@ -1363,11 +1471,11 @@ async function adminDeleteNote(note_id, tab, wasPending){
   try{
     const {data: sold} = await db.from("orders").select("order_id").eq("note_id", note_id).eq("status","approved").limit(1);
     if(sold && sold.length){
-      alert("❌ Ye note pehle hi becha ja chuka hai — delete nahi ho sakta (buyers ka record kharab ho jayega). Sirf Reject karo taake listing se hat jaye.");
+      alert(T("❌ Ye note pehle hi becha ja chuka hai — delete nahi ho sakta (buyers ka record kharab ho jayega). Sirf Reject karo taake listing se hat jaye."));
       return;
     }
   }catch(e){}
-  if(!confirm((wasPending ? "Reject karke " : "") + "Is note ko PERMANENTLY delete karna hai? Ye wapas nahi aayega.")) return;
+  if(!confirm((wasPending ? "Reject karke " : "") + T("Is note ko PERMANENTLY delete karna hai? Ye wapas nahi aayega."))) return;
   try{
     const {data: n} = await db.from("notes").select("file_url,image_urls").eq("note_id", note_id).single();
     const toPath = function(u){
@@ -1411,7 +1519,7 @@ async function adminActivityView(s){
     const signins = acts.filter(function(a){ return a.event === "signin" || a.event === "signup"; }).slice(0, 60);
     const visits = acts.filter(function(a){ return a.event === "visit"; }).slice(0, 60);
     const statCard = function(lbl, val){ return '<div class="statcard" style="flex:1;min-width:140px"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>'; };
-    let html = adminHead(s, "Kaun aaya, kis ne sign in kiya, aur kis ke notes bike — sab kuch yahan.") + adminTabs("activity") +
+    let html = adminHead(s, T("Kaun aaya, kis ne sign in kiya, aur kis ke notes bike — sab kuch yahan.")) + adminTabs("activity") +
       '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">' +
       statCard("👥 Total users", totalUsers) +
       statCard("👁 Visits today", visitsToday) +
@@ -1445,7 +1553,7 @@ async function adminActivityView(s){
       const {data: us} = await db.from("users").select("uid,name,email").in("uid", buyerIds);
       (us||[]).forEach(function(x){ buyerMap[x.uid] = x.name || x.email; });
     }
-    html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">💰 Notes sold (kis ne beche)</div>' +
+    html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">"+T("💰 Notes sold (kis ne beche)")+"</div>' +
       (approvedSales.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Note</th><th>Seller</th><th>Buyer</th><th>Amount</th><th>Date</th></tr>' +
       approvedSales.map(function(o){
         const t = titleMap[o.note_id] || {};
@@ -1466,23 +1574,23 @@ async function adminSecurityView(s){
     const {data} = await db.from("users").select("admin_pass_hash").eq("uid", s.uid).limit(1);
     hasPass = !!(data && data[0] && data[0].admin_pass_hash);
   }catch(e){}
-  app.innerHTML = adminHead(s, "Jab bhi admin Gmail se login hoga, pehle ye password manga jayega.") + adminTabs("security") +
+  app.innerHTML = adminHead(s, T("Jab bhi admin Gmail se login hoga, pehle ye password manga jayega.")) + adminTabs("security") +
     '<div class="fcard" style="max-width:520px"><h2>🔐 Admin login password</h2>' +
-    '<div class="sub">Status: ' + (hasPass ? '<b style="color:var(--green)">SET ✅</b> — admin login par password required hye' : '<b style="color:var(--red)">NOT SET ❌</b> — foran set karein') + '</div>' +
+    '<div class="sub">Status: ' + (hasPass ? T("<b style=\"color:var(--green)\">SET ✅</b> — admin login par password required hye") : T("<b style=\"color:var(--red)\">NOT SET ❌</b> — foran set karein")) + '</div>' +
     '<div id="pw_msg"></div>' +
-    '<div class="field"><label>New admin password (kam az kam 8 characters)</label><input id="pw_new" type="password" placeholder="••••••••" autocomplete="new-password"></div>' +
+    '<div class="field"><label>"+T("New admin password (kam az kam 8 characters)")+"</label><input id="pw_new" type="password" placeholder="••••••••" autocomplete="new-password"></div>' +
     '<button class="btn" style="width:100%" onclick="adminChangePassword()">Save new password</button></div>';
 }
 async function adminChangePassword(){
   const v = document.getElementById("pw_new").value;
   const m = document.getElementById("pw_msg");
-  if(!v || v.length < 8){ m.innerHTML = '<div class="err">Password kam az kam 8 characters ka ho</div>'; return; }
+  if(!v || v.length < 8){ m.innerHTML = '<div class="err">"+T("Password kam az kam 8 characters ka ho")+"</div>'; return; }
   const u = currentUser(); if(!u || !u.is_admin){ m.innerHTML = '<div class="err">Admins only</div>'; return; }
   try{
     const h = await sha256hex("tum-admin::" + v);
     const {error} = await db.from("users").update({admin_pass_hash: h}).eq("uid", u.uid);
     if(error) throw error;
-    m.innerHTML = '<div class="notice ok">✅ Password save ho gaya — agli admin login se yehi lagega</div>';
+    m.innerHTML = '<div class="notice ok">"+T("✅ Password save ho gaya — agli admin login se yehi lagega")+"</div>';
     document.getElementById("pw_new").value = "";
   }catch(e){ m.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
 }
@@ -1508,7 +1616,7 @@ async function adminOrdersView(s){
         '<button class="btn small danger" onclick="adminOrderSet('+o.order_id+','+o.note_id+',\'rejected\')">Reject</button>' : '<span style="color:var(--muted);font-size:12.5px">done</span>') +
       '</td></tr>';
     }).join("");
-    app.innerHTML = adminHead(s, "Verify each payment screenshot — <b>Verify & unlock</b> splits it by the seller's plan: <b>Free 30% · Pro 23% · Business 15%</b> commission to your wallet, baqi seller ko.") +
+    app.innerHTML = adminHead(s, T("Verify each payment screenshot — <b>Verify & unlock</b> splits it by the seller\'s plan: <b>Free 30% · Pro 23% · Business 15%</b> commission to your wallet, baqi seller ko.")) +
       adminTabs("orders") +
       (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Order</th><th>Actions</th></tr>'+rows+'</table></div>' : '<div class="empty">No orders yet. 🎉</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load orders: '+esc(e.message)+'</div>'; }
@@ -1568,15 +1676,15 @@ async function adminChatView(s){
   try{
     const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,text,created_at").order("created_at",{ascending:false}).limit(100);
     if(error) throw error;
-    app.innerHTML = adminHead(s, "Anonymous chat ki moderation — galat message <b>delete</b> karein. Sab anonymous nazar aayenge.") +
+    app.innerHTML = adminHead(s, T("Anonymous chat ki moderation — galat message <b>delete</b> karein. Sab anonymous nazar aayenge.")) +
       adminTabs("chat") +
       '<div class="chatbox" style="height:auto;max-height:60vh">' +
-      ((msgs && msgs.length) ? msgs.map(function(m){ return chatMsgHtml(m, s, true); }).join("") : '<div class="empty">Koi message nahi.</div>') +
+      ((msgs && msgs.length) ? msgs.map(function(m){ return chatMsgHtml(m, s, true); }).join("") : '<div class="empty">"+T("Koi message nahi.")+"</div>') +
       '</div>';
   }catch(e){ app.innerHTML = '<div class="err">Could not load chat: ' + esc(e.message) + '</div>'; }
 }
 async function adminChatDel(id){
-  if(!confirm("Ye message delete kar dein?")) return;
+  if(!confirm(T("Ye message delete kar dein?"))) return;
   try{
     const {error} = await db.from("chat_messages").delete().eq("id", id);
     if(error) throw error;
@@ -1638,8 +1746,8 @@ function initRealtime(){
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"notes"}, function(p){
       if(p.new.status === "approved" && p.old.status !== "approved") toast("✅ Note approved & live: " + (p.new.title || ""));
       const u = currentUser();
-      if(u && p.new.seller_id === u.uid && p.new.status === "approved" && p.old.status !== "approved") pushNotif("🎉 Note live ho gaya!", '"' + (p.new.title || "Aapka note") + '" ab marketplace par bikne ke liye tayyar hye.', "detail:" + p.new.note_id);
-      if(u && p.new.seller_id === u.uid && p.new.status === "rejected" && p.old.status !== "rejected") pushNotif("⚠️ Note reject ho gaya", '"' + (p.new.title || "") + '" admin ne reject kar diya.', "dashboard");
+      if(u && p.new.seller_id === u.uid && p.new.status === "approved" && p.old.status !== "approved") pushNotif(T("🎉 Note live ho gaya!"), '"' + (p.new.title || T("Aapka note")) + T("\" ab marketplace par bikne ke liye tayyar hye."), "detail:" + p.new.note_id);
+      if(u && p.new.seller_id === u.uid && p.new.status === "rejected" && p.old.status !== "rejected") pushNotif(T("⚠️ Note reject ho gaya"), '"' + (p.new.title || "") + T("\" admin ne reject kar diya."), "dashboard");
       if(currentView === "home" || currentView === "browse") go(currentView, currentArg);
       if(currentView === "admin") adminDash(currentUser(), "pending");
     })
@@ -1662,24 +1770,24 @@ function initRealtime(){
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"orders"}, function(p){
       const u = currentUser(); if(!u) return;
       if(p.new.status === "approved" && p.old.status !== "approved"){
-        if(p.new.buyer_id === u.uid){ pushNotif("✅ Order approved!", "Rs " + Number(p.new.amount||0).toLocaleString() + " ka note unlock ho gaya. Kholo aur parho!", "detail:" + p.new.note_id);
+        if(p.new.buyer_id === u.uid){ pushNotif("✅ Order approved!", "Rs " + Number(p.new.amount||0).toLocaleString() + T(" ka note unlock ho gaya. Kholo aur parho!"), "detail:" + p.new.note_id);
           if(currentView === "detail" && currentNote && Number(currentNote.note_id) === Number(p.new.note_id)) autoUnlock(currentNote); }
-        if(p.new.seller_id === u.uid) pushNotif("💰 Sale ho gayi!", "Rs " + Number(p.new.seller_earning||0).toLocaleString() + " aapke wallet main add ho gaye.", "wallet");
+        if(p.new.seller_id === u.uid) pushNotif(T("💰 Sale ho gayi!"), "Rs " + Number(p.new.seller_earning||0).toLocaleString() + T(" aapke wallet main add ho gaye."), "wallet");
       }
       if(p.new.status === "rejected" && p.old.status !== "rejected" && p.new.buyer_id === u.uid){
-        pushNotif("❌ Order reject ho gaya", "Aapki payment verify nahi ho saki. Support se rabta karein.", "");
+        pushNotif(T("❌ Order reject ho gaya"), T("Aapki payment verify nahi ho saki. Support se rabta karein."), "");
       }
     })
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"withdrawals"}, function(p){
       const u = currentUser(); if(!u) return;
       if(p.new.seller_id !== u.uid) return;
-      if(p.new.status === "approved" && p.old.status !== "approved") pushNotif("🏧 Withdrawal bhej di gayi", "Rs " + Number(p.new.amount||0).toLocaleString() + " aapke account par bhej diye gaye.", "wallet");
-      if(p.new.status === "rejected" && p.old.status !== "rejected") pushNotif("↩️ Withdrawal wapas", "Rs " + Number(p.new.amount||0).toLocaleString() + " aapke wallet main wapas aa gaye.", "wallet");
+      if(p.new.status === "approved" && p.old.status !== "approved") pushNotif(T("🏧 Withdrawal bhej di gayi"), "Rs " + Number(p.new.amount||0).toLocaleString() + T(" aapke account par bhej diye gaye."), "wallet");
+      if(p.new.status === "rejected" && p.old.status !== "rejected") pushNotif(T("↩️ Withdrawal wapas"), "Rs " + Number(p.new.amount||0).toLocaleString() + T(" aapke wallet main wapas aa gaye."), "wallet");
     })
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"subscriptions"}, function(p){
       const u = currentUser(); if(!u) return;
-      if(p.new.seller_id === u.uid && p.new.status === "approved" && p.old.status !== "approved") pushNotif("💎 Plan active!", "Aapka " + planName(p.new.plan) + " plan activate ho gaya. Mubarak!", "plans");
-      if(p.new.seller_id === u.uid && p.new.status === "rejected" && p.old.status !== "rejected") pushNotif("❌ Plan reject", "Subscription verify nahi ho saki.", "plans");
+      if(p.new.seller_id === u.uid && p.new.status === "approved" && p.old.status !== "approved") pushNotif("💎 Plan active!", T("Aapka ") + planName(p.new.plan) + T(" plan activate ho gaya. Mubarak!"), "plans");
+      if(p.new.seller_id === u.uid && p.new.status === "rejected" && p.old.status !== "rejected") pushNotif("❌ Plan reject", T("Subscription verify nahi ho saki."), "plans");
     })
     .subscribe(function(status){ dot.style.opacity = status === "SUBSCRIBED" ? 1 : .35; dot.title = "Realtime: " + status; });
 }
@@ -1687,7 +1795,7 @@ function initRealtime(){
 /* ================= STAGED INTRO ================= */
 const SP_STAGES = [
  '<div class="sp-stage"><div class="sp-kicker">PRESENTS</div><div class="sp-brand">SUHRANI DEVELOPERS</div><div class="sp-by">crafted with passion by <b>Ahsan Abid</b></div></div>',
- '<div class="sp-stage"><div class="sp-kicker">TIMES UNIVERSITY MULTAN</div><div class="sp-brand2">TUM NOTES HUB</div><div class="sp-by">Students ka apna <b>notes marketplace</b></div><div class="sp-tag">BUY &middot; SELL &middot; EARN</div></div>',
+ '<div class="sp-stage"><div class="sp-kicker">TIMES UNIVERSITY MULTAN</div><div class="sp-brand2">TUM NOTES HUB</div><div class="sp-by">"+T("Students ka apna <b>notes marketplace</b>")+"</div><div class="sp-tag">BUY &middot; SELL &middot; EARN</div></div>',
  '<div class="sp-stage"><div class="sp-kicker">WHAT YOU CAN DO</div><div class="sp-feats">' +
  '<div class="sp-feat"><div class="ic">📚</div><div class="tx"><b>Buy &amp; sell</b> PDF notes and handwritten photo galleries</div></div>' +
  '<div class="sp-feat"><div class="ic">💰</div><div class="tx">Sellers keep <b>up to 85% of every sale</b> &mdash; straight to wallet</div></div>' +
@@ -1735,7 +1843,7 @@ async function toggleWishlist(note_id, ev){
       const {error} = await db.from("wishlist").insert({user_id: u.uid, note_id: note_id});
       if(error) throw error;
       _wishlist.add(note_id);
-      toast("♥ Wishlist main add ho gaya");
+      toast(T("♥ Wishlist main add ho gaya"));
     }
     document.querySelectorAll('[data-wish="'+note_id+'"]').forEach(function(el){
       const on = _wishlist.has(note_id);
@@ -1750,14 +1858,14 @@ VIEWS.wishlist = async function(){
   await loadWishlist();
   const ids = Array.from(_wishlist);
   if(!ids.length){
-    app.innerHTML = '<div class="section-head"><div class="section-title">♥ My Wishlist</div></div><div class="empty">Abhi khaali hye — notes par ♥ dabao taake baad main aasani se mil jayen.</div>';
+    app.innerHTML = '<div class="section-head"><div class="section-title">♥ My Wishlist</div></div><div class="empty">"+T("Abhi khaali hye — notes par ♥ dabao taake baad main aasani se mil jayen.")+"</div>';
     return;
   }
   try{
     const {data, error} = await db.from("notes").select("*").in("note_id", ids).eq("status", "approved");
     if(error) throw error;
     app.innerHTML = '<div class="section-head"><div class="section-title">♥ My Wishlist ('+data.length+')</div></div>' +
-      (data.length ? '<div class="grid">' + data.map(noteCard).join("") + '</div>' : '<div class="empty">Koi approved note nahi mila.</div>');
+      (data.length ? '<div class="grid">' + data.map(noteCard).join("") + '</div>' : '<div class="empty">"+T("Koi approved note nahi mila.")+"</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 };
 
@@ -1802,7 +1910,7 @@ VIEWS.notifications = async function(){
               (n.body ? '<div style="font-size:13.5px;color:var(--muted);margin-top:4px">'+esc(n.body)+'</div>' : '') +
               '<div style="font-size:12px;color:var(--muted);margin-top:6px">'+fmtDate(n.created_at)+'</div></div></div>';
           }).join("") + '</div>'
-        : '<div class="empty">Koi notification nahi — jab aapki sale hogi ya order approve hoga to yahan khabar milegi. 🔔</div>');
+        : '<div class="empty">"+T("Koi notification nahi — jab aapki sale hogi ya order approve hoga to yahan khabar milegi. 🔔")+"</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 };
 
@@ -1821,8 +1929,8 @@ function myReferralLink(){
 }
 async function copyReferral(){
   const link = myReferralLink();
-  try{ await navigator.clipboard.writeText(link); toast("📋 Referral link copy ho gaya!"); }
-  catch(e){ prompt("Copy karo:", link); }
+  try{ await navigator.clipboard.writeText(link); toast(T("📋 Referral link copy ho gaya!")); }
+  catch(e){ prompt(T("Copy karo:"), link); }
 }
 
 /* ================= SELLER DASHBOARD ================= */
@@ -1853,7 +1961,7 @@ VIEWS.dashboard = async function(){
               '<div style="flex:1"><div style="font-weight:800">'+esc(n.title||"Untitled")+'</div>' +
               '<div style="font-size:13px;color:var(--muted);margin-top:4px">👁 '+(Number(n.views)||0)+' views · ⬇ '+(Number(n.downloads)||0)+' downloads · '+priceStr(n.price)+' · <span class="badge '+(n.status==="approved"?"":n.status==="pending"?"pending":"rejected")+'">'+esc(n.status||"")+'</span></div></div></div>';
           }).join("") + '</div>'
-        : '<div class="empty">Abhi koi note upload nahi kiya — <b>Sell</b> par jao aur pehla note lagao! 🚀</div>');
+        : '<div class="empty">"+T("Abhi koi note upload nahi kiya — <b>Sell</b> par jao aur pehla note lagao! 🚀")+"</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 };
 async function trackView(note_id){
@@ -1870,7 +1978,7 @@ async function renderPdfPreview(pdfUrl, mountId, maxPages){
     pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     const pdf = await pdfjs.getDocument(pdfUrl).promise;
     const pages = Math.min(maxPages || 2, pdf.numPages);
-    mount.innerHTML = '<div class="sub" style="margin-bottom:10px">📖 Free preview — pehle '+pages+' pages (poora note unlock karne ke baad)</div><div style="display:flex;gap:12px;flex-wrap:wrap"></div>';
+    mount.innerHTML = '<div class="sub" style="margin-bottom:10px">'+T("📖 Free preview — pehle ")+pages+T(" pages (poora note unlock karne ke baad)")+'</div><div style="display:flex;gap:12px;flex-wrap:wrap"></div>';
     const wrap = mount.lastChild;
     for(let i=1; i<=pages; i++){
       const page = await pdf.getPage(i);
@@ -1887,7 +1995,7 @@ async function renderPdfPreview(pdfUrl, mountId, maxPages){
     }
     applyWatermarks();
   }catch(e){
-    mount.innerHTML = '<div class="notice warn">Preview load nahi ho saka.</div>';
+    mount.innerHTML = '<div class="notice warn">"+T("Preview load nahi ho saka.")+"</div>';
   }
 }
 
@@ -1895,7 +2003,7 @@ async function renderPdfPreview(pdfUrl, mountId, maxPages){
 async function downloadStampedPdf(note_id){
   const u = requireLogin(); if(!u) return;
   const msg = document.getElementById("stampMsg");
-  if(msg) msg.innerHTML = "⏳ Aapke naam ka watermark lag raha hye…";
+  if(msg) msg.innerHTML = T("⏳ Aapke naam ka watermark lag raha hye…");
   try{
     const {data: sess} = await db.auth.getSession();
     const token = sess && sess.session ? sess.session.access_token : "";
@@ -1913,7 +2021,7 @@ async function downloadStampedPdf(note_id){
     a.href = URL.createObjectURL(blob);
     a.download = "tum-note-" + note_id + ".pdf";
     document.body.appendChild(a); a.click(); a.remove();
-    if(msg) msg.innerHTML = '<div class="notice ok">✅ Download ho gaya — har page par aapka naam watermark hye.</div>';
+    if(msg) msg.innerHTML = '<div class="notice ok">"+T("✅ Download ho gaya — har page par aapka naam watermark hye.")+"</div>';
   }catch(e){
     if(msg) msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>';
   }
@@ -1937,8 +2045,8 @@ function showInstallBanner(){
   b.id = "pwaBanner";
   b.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:900;background:#141726;color:#fff;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 14px 34px rgba(0,0,0,.3)";
   b.innerHTML = '<img src="/icons/icon-192.png" style="width:44px;height:44px;border-radius:12px" alt="">' +
-    '<div style="flex:1"><div style="font-weight:800;font-size:14.5px">📲 TUM Notes app install karo</div>' +
-    '<div style="font-size:12.5px;opacity:.75">Home screen se seedha kholo — tez aur full-screen</div></div>' +
+    '<div style="flex:1"><div style="font-weight:800;font-size:14.5px">"+T("📲 TUM Notes app install karo")+"</div>' +
+    '<div style="font-size:12.5px;opacity:.75">"+T("Home screen se seedha kholo — tez aur full-screen")+"</div></div>' +
     '<button id="pwaGo" style="background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer">Install</button>' +
     '<button id="pwaX" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:10px 12px;cursor:pointer">✕</button>';
   document.body.appendChild(b);
@@ -1950,6 +2058,7 @@ function showInstallBanner(){
 /* ================= BOOT ================= */
 (function(){ runSplash(); })();
 function hideSplash(){ const s = document.getElementById("splash"); if(!s || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(function(){ s.remove(); }, 700); }
+paintLangToggle();
 updateUserBox();
 subscribeWallet();
 initRealtime();

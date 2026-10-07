@@ -7,7 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPA_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WA_SECRET=<redacted>
+const WA_SECRET = Deno.env.get("WA_ADMIN_SECRET") || "";
 const LIMITS: Record<string, number> = { pro: 300, business: 1000000 };
 const PLAN_RANK: Record<string, number> = { pro: 1, business: 2 };
 
@@ -20,7 +20,9 @@ const J = (o: unknown, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function isAdmin(req: Request, body: Record<string, unknown>, supa: ReturnType<typeof createClient>) {
-if (WA_SECRET && body.admin_secret=<redacted>
+if (WA_SECRET && body.admin_secret === WA_SECRET) {
+    return true;
+  }
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!jwt) return false;
   const { data: { user } } = await supa.auth.getUser(jwt);

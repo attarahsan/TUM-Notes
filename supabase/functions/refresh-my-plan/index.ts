@@ -1,0 +1,1 @@
+../../../supabase-functions/refresh-my-plan.ts

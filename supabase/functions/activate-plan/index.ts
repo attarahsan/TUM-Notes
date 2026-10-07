@@ -1,0 +1,1 @@
+../../../supabase-functions/activate-plan.ts
