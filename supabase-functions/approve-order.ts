@@ -64,10 +64,12 @@ serve(async (req) => {
     const commission = Math.round(amount * rate);
     const earning = amount - commission;
 
-    // referral: referrer gets 10% of the sale, cut from the ADMIN's share
-    // (seller keeps their full 70/77/85%; admin gets rate-10%)
+    // referral: referrer gets 10% of the sale for the referred seller's first 20
+    // sales, then 5% lifetime after that. Cut from the ADMIN's share
+    // (seller keeps their full 70/77/85%; admin gets rate-referrer%).
     let referrerUid: string | null = null;
     let referrerCut = 0;
+    let referrerRate = 0;
     try {
       const { data: srow } = await supa.from("users").select("referred_by").eq("uid", o.seller_id).single();
       const refCode = (srow as any)?.referred_by;
@@ -75,7 +77,14 @@ serve(async (req) => {
         const { data: ref } = await supa.from("users").select("uid").eq("referral_code", refCode).limit(1).single();
         if ((ref as any)?.uid && (ref as any).uid !== o.seller_id) {
           referrerUid = (ref as any).uid as string;
-          referrerCut = Math.round(amount * 0.10);
+          // count previous approved sales where this referrer earned from this seller
+          const { count: prevSales } = await supa.from("orders")
+            .select("order_id", { count: "exact", head: true })
+            .eq("referrer_uid", referrerUid)
+            .eq("seller_id", o.seller_id)
+            .eq("status", "approved");
+          referrerRate = (prevSales || 0) >= 20 ? 0.05 : 0.10;
+          referrerCut = Math.round(amount * referrerRate);
         }
       }
     } catch { /* no referrer → admin keeps full commission */ }
