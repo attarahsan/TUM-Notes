@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://tumpronotes.netlify.app/sitemap.xml
+Sitemap: https://tumpronote.netlify.app/sitemap.xml
