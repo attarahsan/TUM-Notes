@@ -49,10 +49,16 @@ serve(async (req) => {
     }
 
     const amount = Number(o.amount) || 0;
-    // commission depends on the seller's CURRENT plan (checked at approval time)
-    const { data: s } = await supa.from("users").select("wallet,total_earnings,plan,plan_expires").eq("uid", o.seller_id).single();
-    let splan = (s as any)?.plan || "free";
-    if ((s as any)?.plan_expires && Number((s as any).plan_expires) < Date.now() && splan !== "free") splan = "free"; // expired → free rate
+    // commission depends on the seller's EFFECTIVE plan = best ACTIVE subscription
+    // (a newer Business expiring must not silently fall back to Free 30% while an
+    // older Pro is still active — check subscriptions directly, not users.plan)
+    const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, business: 2 };
+    const { data: subs } = await supa.from("subscriptions")
+      .select("plan,expires_at").eq("seller_id", o.seller_id).eq("status", "approved")
+      .gt("expires_at", Date.now());
+    let splan = "free";
+    for (const s2 of (subs as any[]) || [])
+      if ((PLAN_RANK[s2.plan] || 0) > (PLAN_RANK[splan] || 0)) splan = s2.plan;
     const RATES: Record<string, number> = { business: 0.15, pro: 0.23 }; // free (default): 0.30
     const rate = RATES[splan] ?? 0.30;
     const commission = Math.round(amount * rate);
@@ -62,6 +68,7 @@ serve(async (req) => {
       .update({ status: "approved", commission, seller_earning: earning }).eq("order_id", order_id);
     if (oErr) return J({ error: oErr.message }, 500);
 
+    const { data: s } = await supa.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).single();
     if (s) await supa.from("users").update({
       wallet: (Number(s.wallet) || 0) + earning,
       total_earnings: (Number(s.total_earnings) || 0) + earning,

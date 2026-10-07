@@ -30,7 +30,7 @@ CREATE POLICY users_update ON public.users FOR UPDATE TO authenticated
 CREATE OR REPLACE FUNCTION public.users_signup_defaults()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  NEW.wallet := 30;
+  NEW.wallet := 20;
   NEW.total_earnings := 0;
   NEW.plan := 'free';
   NEW.note_limit := 25;

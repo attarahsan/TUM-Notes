@@ -842,7 +842,7 @@ async function checkAccess(){
 }
 
 /* ================= ANONYMOUS CHAT ================= */
-let chatSub = null, lastChatSent = 0;
+let chatSub = null, lastChatSent = 0, myChatToken = null;
 const CHAT_ANIMALS = ["🦊","🐼","🐨","🐯","🦁","🐸","🐵","🐷","🐰","🐻","🐶","🐱","🦄","🐝","🦋","🐢","🐙","🦜","🐳","🦉"];
 function anonTag(sender_id){
   let h = 0; const s = String(sender_id || "");
@@ -850,7 +850,7 @@ function anonTag(sender_id){
   return "Anonymous " + CHAT_ANIMALS[h % CHAT_ANIMALS.length];
 }
 function chatMsgHtml(m, me, showDel){
-  const mine = me && m.sender_id === me.uid;
+  const mine = myChatToken && m.sender_id === myChatToken;
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '"><div class="who">' + esc(anonTag(m.sender_id)) + (mine ? " (aap)" : "") + '</div>' +
     '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) +
     (showDel ? ' · <button class="del" onclick="adminChatDel(' + m.id + ')">🗑 delete</button>' : "") + '</div></div>';
@@ -858,6 +858,7 @@ function chatMsgHtml(m, me, showDel){
 VIEWS.chat = async function(){
   const u = requireLogin(); if(!u) return;
   if(chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; }
+  try{ const r = await db.rpc("my_anon_token"); myChatToken = r.data || null; }catch(e){ myChatToken = null; }
   app.innerHTML = '<div class="section-title" style="margin-top:4px">💬 Anonymous chat</div>' +
     '<div class="sub" style="margin-bottom:12px">🕵️ Yahan <b>sab anonymous</b> hain — kisi ko nahi pata chalega kon likh raha hye. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — jis ke paas honge wo note ka title bata dega.</div>' +
     '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
@@ -891,8 +892,8 @@ async function sendChatMsg(ev){
   const now = Date.now();
   if(now - lastChatSent < 3000){ toast("Thoda rukein — 3 second me 1 message ⏳"); return; }
   lastChatSent = now; inp.value = "";
-  const {error} = await db.from("chat_messages").insert({sender_id: u.uid, text: t, created_at: Date.now()});
-  if(error){ toast("Failed: " + error.message); lastChatSent = 0; }
+  const {error} = await db.rpc("send_chat_message", {p_text: t});
+  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? "Thoda rukein — 3 second me 1 message ⏳" : error.message)); lastChatSent = 0; }
 }
 
 /* ================= SELL ================= */
