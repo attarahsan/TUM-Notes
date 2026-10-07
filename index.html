@@ -254,6 +254,13 @@ img{max-width:100%;height:auto}
 #pageViewer .pv-prev{left:12px;top:50%;transform:translateY(-50%)}
 #pageViewer .pv-next{right:12px;top:50%;transform:translateY(-50%)}
 #pageViewer .pv-count{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.5);padding:6px 14px;border-radius:20px;font-size:13px;z-index:2}
+
+/* ---- ad slots (luxury) ---- */
+.adslot{margin:26px 0;text-align:center}
+.adlabel{font-size:10px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;font-weight:700}
+.adbody{background:var(--card);border:1px dashed rgba(212,175,55,.35);border-radius:14px;min-height:96px;display:flex;align-items:center;justify-content:center;padding:20px}
+.adplaceholder{color:var(--muted);font-size:13px}
+.adslot .adsbygoogle{display:block;min-height:90px}
 </style>
 </head>
 <body>
@@ -295,6 +302,24 @@ img{max-width:100%;height:auto}
 <script>
 /* ================= CONFIG ================= */
 const SUPABASE_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
+
+// ================= AD MONETIZATION =================
+// Google AdSense ke liye tayyar ad slots.
+// ADSENSE_CLIENT_ID me apna publisher ID dalein (e.g. "ca-pub-1234567890123456")
+// jab AdSense approve ho jaye. Tab tak khubsurat placeholder dikhega.
+// NOTE: Ads ko kabhi kisi action (buy/sell/withdraw) se pehle force NA karein —
+// ye AdSense policies ke khilaf hye aur account ban ho sakta hye.
+const ADSENSE_CLIENT_ID = "";
+function adSlot(slotId){
+  if(ADSENSE_CLIENT_ID){
+    return '<div class="adslot"><div class="adlabel">Advertisement</div>' +
+      '<ins class="adsbygoogle" style="display:block" data-ad-client="'+ADSENSE_CLIENT_ID+'"' +
+      ' data-ad-slot="'+slotId+'" data-ad-format="auto" data-full-width-responsive="true"></ins>' +
+      '<scr'+'ipt>(adsbygoogle = window.adsbygoogle || []).push({});</scr'+'ipt></div>';
+  }
+  return '<div class="adslot"><div class="adlabel">Advertisement</div>' +
+    '<div class="adbody"><div class="adplaceholder">Ad space — AdSense approve hone ke baad yahan ad aayega</div></div></div>';
+}
 const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const PAYMENT_METHOD = "Easypaisa";
@@ -815,12 +840,12 @@ VIEWS.home = async function(){
       '<div class="stats"><div><b>'+notes.length+'</b><span>approved notes</span></div>' +
       '<div><b>'+free+'</b><span>free notes</span></div>' +
       '<div><b>'+DEPARTMENTS.length+'</b><span>departments</span></div></div></div>' +
-      '<div class="section-head"><div class="section-title">Browse by department</div></div><div class="chips">' +
+      adSlot("home-top") + '<div class="section-head"><div class="section-title">Browse by department</div></div><div class="chips">' +
       '<div class="chip" onclick="deptGo(\'\')">All</div>' +
       DEPARTMENTS.map(function(d){ return '<div class="chip" onclick="deptGo(\''+esc(d)+'\')">'+esc(d)+'</div>'; }).join("") + '</div>' +
       '<div class="section-head"><div class="section-title">Top rated</div><button class="section-link" onclick="go(\'browse\')">View all →</button></div>' +
       '<div class="grid">' + feat.map(noteCard).join("") + '</div>' +
-      '<div class="section-head"><div class="section-title">Fresh uploads</div></div>' +
+      adSlot("home-mid") + '<div class="section-head"><div class="section-title">Fresh uploads</div></div>' +
       '<div class="grid">' + latest.map(noteCard).join("") + '</div>' +
       (notes.length === 0 ? '<div class="empty">No approved notes yet — be the first to <a href="#" onclick="go(\'sell\');return false;" style="color:var(--brand);font-weight:700">sell a note</a>!</div>' : '');
     document.getElementById("hq").addEventListener("keydown", function(e){ if(e.key === "Enter") doSearch(); });
@@ -868,7 +893,7 @@ function renderBrowse(notes){
       '<button class="btn small ghost" onclick="applyFilters()">Apply</button></div>' +
     '</div>' +
     '<div style="color:var(--muted);font-size:14px;margin-bottom:14px">'+list.length+' note(s) found · updates live</div>' +
-    '<div class="grid">' + list.map(noteCard).join("") + '</div>' +
+    '<div class="grid">' + list.map(noteCard).join("") + '</div>' + adSlot("browse-mid") +
     (list.length === 0 ? '<div class="empty">No notes match your filters.</div>' : '');
   Object.keys(selVal).forEach(function(id){ document.getElementById(id).value = f[selVal[id]]; });
   document.getElementById("fq").addEventListener("keydown", function(e){ if(e.key === "Enter") applyFilters(); });
@@ -939,7 +964,7 @@ VIEWS.detail = async function(note_id){
           '<button class="btn" onclick="showUnlockForm()">Unlock now — Rs '+Number(n.price).toLocaleString()+'</button> ' +
           '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button></div>') +
       ((!isImgNote && n.file_url) ? '<div class="section-title" style="font-size:19px">👀 Free preview</div><div id="pdfPreview" style="margin-bottom:8px"></div>' : '') +
-      '<div class="section-title" style="font-size:19px">Reviews</div><div id="revlist">' +
+      adSlot("detail-mid") + '<div class="section-title" style="font-size:19px">Reviews</div><div id="revlist">' +
         ((revs||[]).length ? revs.map(function(r){ return '<div class="review"><div class="who">'+esc(r.user_name||"Anonymous")+' '+starStr(r.stars)+'</div><div class="txt">'+esc(r.comment||"")+'</div></div>'; }).join("")
           : '<div class="empty" style="padding:22px">No reviews yet — be the first!</div>') + '</div>' +
       '<div class="section-title" style="font-size:17px">Write a review</div>' +
@@ -1143,7 +1168,7 @@ async function compressImage(file){
 }
 VIEWS.sell = async function(){
   if(!requireLogin()) return;
-  app.innerHTML = '<div class="section-title" style="margin-top:4px">Sell your notes</div>' +
+  app.innerHTML = adSlot("sell-top") + '<div class="section-title" style="margin-top:4px">Sell your notes</div>' +
     '<div class="sub" style="color:var(--muted);margin-bottom:18px">What do you want to sell?</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">' +
     '<div class="card" onclick="sellPdfForm()"><h3>📄 PDF / Document</h3><div class="meta">Upload a PDF, DOC or PPT file.<br><b>You</b> set the price yourself.</div><div class="foot"><span class="price">Your price</span><span class="sellerline">→</span></div></div>' +
@@ -1299,7 +1324,7 @@ async function submitNote(ev){
 /* ================= WALLET ================= */
 VIEWS.wallet = async function(){
   const u = requireLogin(); if(!u) return;
-  app.innerHTML = '<div class="loading">Loading wallet…</div>';
+  app.innerHTML = adSlot("wallet-top") + '<div class="loading">Loading wallet…</div>';
   await refreshWallet();
   const me = currentUser();
   if(me.is_admin) return adminWalletView(me);
