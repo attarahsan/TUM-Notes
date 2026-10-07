@@ -396,10 +396,17 @@ async function refreshWallet(){
     const {data} = await db.from("users").select("wallet,total_earnings,plan,note_limit,plan_expires,withdraw_pass_hash,referral_code").eq("uid", u.uid).limit(1);
     if(data && data.length){
       const r = data[0];
-      if(r.plan && r.plan !== "free" && r.plan_expires && Number(r.plan_expires) < Date.now()){
-        await db.from("users").update({plan:"free", note_limit:25, plan_expires:0}).eq("uid", u.uid);
-        r.plan = "free"; r.note_limit = 25; r.plan_expires = 0;
-        toast("Your subscription expired — back to Free plan");
+      if(r.plan && r.plan !== "free"){
+        // plan ki asal haalat server se confirm karo: har subscription apni 30-day date par
+        // expire hoti hye; koi active plan ho to woh chalta rehta hye, warna free.
+        try{
+          const {data: rp, error: rpErr} = await db.functions.invoke("refresh-my-plan", {body: {}});
+          if(!rpErr && rp && !rp.error && rp.plan){
+            const wasActive = r.plan !== "free" && (r.plan_expires||0) > Date.now();
+            r.plan = rp.plan; r.note_limit = rp.note_limit; r.plan_expires = rp.plan_expires;
+            if(wasActive && rp.plan === "free") toast("Aapka subscription expire ho gaya — wapas Free plan par");
+          }
+        }catch(e){ /* function purana ho to purani value rehne do */ }
       }
       u.wallet = r.wallet; u.total_earnings = r.total_earnings;
       u.plan = r.plan || "free"; u.note_limit = r.note_limit || 25; u.plan_expires = r.plan_expires || 0;
@@ -1196,6 +1203,7 @@ VIEWS.plans = async function(){
   }).join("");
   app.innerHTML = '<div class="section-title" style="margin-top:4px">Subscription plans</div>' +
     '<div class="notice">Hit your note limit? Upgrade here — plans raise your upload limit <b>aur commission bhi kam karte hain</b>: Pro par 23%, Business par sirf 15%.</div>' +
+    '<div class="notice">⏳ <b>Har plan apni activation date se poore 30 din chalega.</b> Agar aap Pro ke baad Business lete hain to dono apni-apni date par expire honge — pehle wala plan foran khatam nahi hoga.</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">' + cards + '</div>';
 };
 function subscribePlan(key){

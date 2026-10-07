@@ -8,6 +8,27 @@ const SUPA_URL = "https://xsvkyiigcjibgkcytssr.supabase.co";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WA_SECRET = Deno.env.get("WA_ADMIN_SECRET") || "";
 const LIMITS: Record<string, number> = { pro: 300, business: 1000000 };
+const PLAN_RANK: Record<string, number> = { pro: 1, business: 2 }; // business > pro
+const THIRTY_DAYS = 30 * 86400000;
+
+// Effective plan = sab se aala (best) ACTIVE subscription.
+// Har subscription apni activation date se 30 din chalti hye — nayi subscription
+// purani ko khatam nahi karti; dono apni-apni date par expire hongi.
+async function effectivePlan(supa: ReturnType<typeof createClient>, seller_id: string) {
+  const now = Date.now();
+  const { data: subs } = await supa.from("subscriptions")
+    .select("plan,expires_at").eq("seller_id", seller_id).eq("status", "approved").gt("expires_at", now);
+  let best: string | null = null;
+  for (const s of (subs as any[]) || []) {
+    if ((PLAN_RANK[s.plan] || 0) > (PLAN_RANK[best || ""] || 0)) best = s.plan;
+  }
+  if (!best) return { plan: "free", note_limit: 25, expires_at: 0 };
+  let exp = 0;
+  for (const s of (subs as any[]) || []) {
+    if (s.plan === best) exp = Math.max(exp, Number(s.expires_at) || 0);
+  }
+  return { plan: best, note_limit: LIMITS[best] ?? 25, expires_at: exp };
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -46,14 +67,16 @@ serve(async (req) => {
       return J({ ok: true, status: "rejected" });
     }
 
-    const lim = LIMITS[sub.plan] ?? 25;
-    const exp = Date.now() + 30 * 86400000;
-    const { error: sErr } = await supa.from("subscriptions").update({ status: "approved" }).eq("id", sub_id);
+    const now = Date.now();
+    const exp = now + THIRTY_DAYS;
+    const { error: sErr } = await supa.from("subscriptions").update({ status: "approved", expires_at: exp }).eq("id", sub_id);
     if (sErr) return J({ error: sErr.message }, 500);
+    // naye plan ke saath purane active plans bhi apni date tak chalte rehte hain
+    const eff = await effectivePlan(supa, sub.seller_id);
     const { error: uErr } = await supa.from("users")
-      .update({ plan: sub.plan, note_limit: lim, plan_expires: exp }).eq("uid", sub.seller_id);
+      .update({ plan: eff.plan, note_limit: eff.note_limit, plan_expires: eff.expires_at }).eq("uid", sub.seller_id);
     if (uErr) return J({ error: uErr.message }, 500);
-    return J({ ok: true, status: "approved", plan: sub.plan });
+    return J({ ok: true, status: "approved", plan: eff.plan });
   } catch (e) {
     return J({ error: String((e as Error)?.message || e) }, 500);
   }
