@@ -710,6 +710,7 @@ VIEWS.detail = async function(note_id){
       '<button class="btn" onclick="submitReview('+n.note_id+')">Submit review</button><div id="rv_msg" style="margin-top:12px"></div></div>';
     applyWatermarks();
     if(!isImgNote && n.file_url) renderPdfPreview(n.file_url, "pdfPreview");
+    if(!isFree) autoUnlock(n); // khareeda hua ho to foran khol do — dobara tap ki zaroorat nahi
   }catch(e){ app.innerHTML = '<div class="err">Could not load note: '+esc(e.message)+'</div>'; }
 };
 async function submitReview(note_id){
@@ -729,6 +730,28 @@ async function submitReview(note_id){
 }
 
 /* ---- paid unlock flow ---- */
+/* buyer ne pehle khareeda hua ho to page kholte hi content auto-unlock */
+function showUnlockedContent(n, area){
+  if(n.note_type === "images"){
+    const gal = document.getElementById("noteGallery");
+    if(gal){ gal.innerHTML = galleryHtml(imageList(n), true); applyWatermarks(); }
+    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — enjoy!</div>';
+  }else{
+    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — enjoy!</div>' +
+      (n.file_url ? '<button class="btn" onclick="downloadStampedPdf('+n.note_id+')">⬇ Download (aapke naam ke watermark ke saath)</button> ' +
+                    '<a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open original</a><div id="stampMsg" style="margin-top:10px"></div>'
+                  : '<div class="notice warn">File not attached by seller yet.</div>');
+  }
+}
+async function autoUnlock(n){
+  const u = currentUser(); if(!u) return;
+  const area = document.getElementById("unlockArea"); if(!area) return;
+  try{
+    const {data, error} = await db.from("orders").select("status").eq("note_id", n.note_id).eq("buyer_id", u.uid).order("timestamp",{ascending:false}).limit(1);
+    if(error || !data || !data.length) return; // not bought → keep Unlock buttons
+    if(data[0].status === "approved") showUnlockedContent(n, area);
+  }catch(e){ /* keep Unlock buttons; user can tap "I already paid" */ }
+}
 function showUnlockForm(){
   const u = requireLogin(); if(!u) return;
   const n = currentNote;
@@ -790,16 +813,7 @@ async function checkAccess(){
       return;
     }
     if(data[0].status === "approved"){
-      if(n.note_type === "images"){
-        const gal = document.getElementById("noteGallery");
-        if(gal){ gal.innerHTML = galleryHtml(imageList(n), true); applyWatermarks(); }
-        area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>';
-      }else{
-        area.innerHTML = '<div class="notice ok">✅ Payment verified — enjoy your note!</div>' +
-          (n.file_url ? '<button class="btn" onclick="downloadStampedPdf('+n.note_id+')">⬇ Download (aapke naam ke watermark ke saath)</button> ' +
-                        '<a class="btn ghost" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">Open original</a><div id="stampMsg" style="margin-top:10px"></div>'
-                      : '<div class="notice warn">File not attached by seller yet.</div>');
-      }
+      showUnlockedContent(n, area);
     }else{
       area.innerHTML = '<div class="notice">Your payment is <b>pending admin approval</b> — please check back soon.</div>';
     }
@@ -1489,7 +1503,8 @@ function initRealtime(){
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"orders"}, function(p){
       const u = currentUser(); if(!u) return;
       if(p.new.status === "approved" && p.old.status !== "approved"){
-        if(p.new.buyer_id === u.uid) pushNotif("✅ Order approved!", "Rs " + Number(p.new.amount||0).toLocaleString() + " ka note unlock ho gaya. Kholo aur parho!", "detail:" + p.new.note_id);
+        if(p.new.buyer_id === u.uid){ pushNotif("✅ Order approved!", "Rs " + Number(p.new.amount||0).toLocaleString() + " ka note unlock ho gaya. Kholo aur parho!", "detail:" + p.new.note_id);
+          if(currentView === "detail" && currentNote && Number(currentNote.note_id) === Number(p.new.note_id)) autoUnlock(currentNote); }
         if(p.new.seller_id === u.uid) pushNotif("💰 Sale ho gayi!", "Rs " + Number(p.new.seller_earning||0).toLocaleString() + " aapke wallet main add ho gaye.", "wallet");
       }
       if(p.new.status === "rejected" && p.old.status !== "rejected" && p.new.buyer_id === u.uid){
@@ -1499,7 +1514,7 @@ function initRealtime(){
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"withdrawals"}, function(p){
       const u = currentUser(); if(!u) return;
       if(p.new.seller_id !== u.uid) return;
-      if(p.new.status === "approved" && p.old.status !== "approved") pushNotif("🏧 Withdrawal bhej di gayi", "Rs " + Number(p.new.amount||0).toLocaleString() + " aapke Easypaisa par bhej diye gaye.", "wallet");
+      if(p.new.status === "approved" && p.old.status !== "approved") pushNotif("🏧 Withdrawal bhej di gayi", "Rs " + Number(p.new.amount||0).toLocaleString() + " aapke account par bhej diye gaye.", "wallet");
       if(p.new.status === "rejected" && p.old.status !== "rejected") pushNotif("↩️ Withdrawal wapas", "Rs " + Number(p.new.amount||0).toLocaleString() + " aapke wallet main wapas aa gaye.", "wallet");
     })
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"subscriptions"}, function(p){
