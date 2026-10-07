@@ -225,6 +225,17 @@ img{max-width:100%;height:auto}
   .detail,#noteGallery,.wm-wrap{display:none!important}
   body::after{content:"Printing is disabled on TUM Notes Hub";display:block;text-align:center;padding:60px;font-size:18px}
 }
+/* fullscreen page viewer (purchased notes) */
+#pageViewer{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;background:rgba(5,5,15,.96)}
+#pageViewer.open{display:flex}
+#pageViewer .pv-back{position:absolute;inset:0}
+#pageViewer .pv-wrap{position:relative;max-width:94vw;max-height:92vh}
+#pageViewer .pv-wrap img{max-width:94vw;max-height:92vh;border-radius:12px;display:block}
+#pageViewer .pv-btn{position:absolute;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:50%;width:46px;height:46px;font-size:24px;cursor:pointer;z-index:2}
+#pageViewer .pv-close{top:14px;right:14px}
+#pageViewer .pv-prev{left:12px;top:50%;transform:translateY(-50%)}
+#pageViewer .pv-next{right:12px;top:50%;transform:translateY(-50%)}
+#pageViewer .pv-count{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.5);padding:6px 14px;border-radius:20px;font-size:13px;z-index:2}
 </style>
 </head>
 <body>
@@ -291,6 +302,53 @@ function galleryHtml(imgs, noLink){
       const im = '<div class="wm-wrap"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy" draggable="false"></div>';
       return noLink ? im : '<a href="'+esc(u)+'" target="_blank" rel="noopener">'+im+'</a>';
     }).join("") + '</div>';
+}
+/* purchased pages: click → fullscreen viewer (preview pages stay non-clickable) */
+let pvImgs = [], pvIdx = 0;
+function galleryHtmlFull(imgs){
+  window._fullImgs = imgs;
+  return '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' +
+    imgs.map(function(u, i){
+      return '<div class="wm-wrap" onclick="openPageViewer('+i+')" style="cursor:zoom-in" title="Fullscreen dekhein"><img src="'+esc(u)+'" style="width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" loading="lazy" draggable="false"></div>';
+    }).join("") + '</div>';
+}
+function openPageViewer(i){
+  pvImgs = window._fullImgs || []; pvIdx = i || 0;
+  let ov = document.getElementById("pageViewer");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "pageViewer";
+    ov.innerHTML = '<div class="pv-back" onclick="closePageViewer()"></div>' +
+      '<div class="pv-wrap wm-wrap"><img id="pvImg" draggable="false" alt=""></div>' +
+      '<button class="pv-btn pv-close" onclick="closePageViewer()">✕</button>' +
+      '<button class="pv-btn pv-prev" onclick="pvNav(-1,event)">‹</button>' +
+      '<button class="pv-btn pv-next" onclick="pvNav(1,event)">›</button>' +
+      '<div id="pvCount" class="pv-count"></div>';
+    document.body.appendChild(ov);
+    document.addEventListener("keydown", function(e){
+      if(!document.getElementById("pageViewer") || !document.getElementById("pageViewer").classList.contains("open")) return;
+      if(e.key === "Escape") closePageViewer();
+      if(e.key === "ArrowLeft") pvNav(-1);
+      if(e.key === "ArrowRight") pvNav(1);
+    });
+  }
+  pvShow();
+}
+function pvShow(){
+  const ov = document.getElementById("pageViewer"); if(!ov || !pvImgs.length) return;
+  if(pvIdx < 0) pvIdx = pvImgs.length - 1;
+  if(pvIdx >= pvImgs.length) pvIdx = 0;
+  document.getElementById("pvImg").src = pvImgs[pvIdx];
+  document.getElementById("pvCount").textContent = (pvIdx + 1) + " / " + pvImgs.length;
+  ov.classList.add("open");
+  document.body.style.overflow = "hidden";
+  applyWatermarks();
+}
+function pvNav(d, ev){ if(ev) ev.stopPropagation(); pvIdx += d; pvShow(); }
+function closePageViewer(){
+  const ov = document.getElementById("pageViewer");
+  if(ov) ov.classList.remove("open");
+  document.body.style.overflow = "";
 }
 /* ================= CONTENT PROTECTION ================= */
 function wmLabel(){
@@ -699,7 +757,7 @@ VIEWS.detail = async function(note_id){
     let mediaHtml = "";
     if(isImgNote && galImgs.length){
       mediaHtml = isFree
-        ? '<div id="noteGallery" style="margin-bottom:18px">' + galleryHtml(galImgs, true) + '</div>'
+        ? '<div id="noteGallery" style="margin-bottom:18px">' + galleryHtmlFull(galImgs) + '</div>'
         : '<div id="noteGallery" style="margin-bottom:18px;position:relative"><img src="'+esc(galImgs[0])+'" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;filter:blur(16px)">' +
           '<div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center"><div style="font-size:46px">🔒</div><div style="color:#fff;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,.6)">'+galImgs.length+' photos — unlock to view</div></div></div>';
     }else if(n.image_urls){
@@ -755,8 +813,8 @@ async function submitReview(note_id){
 function showUnlockedContent(n, area){
   if(n.note_type === "images"){
     const gal = document.getElementById("noteGallery");
-    if(gal){ gal.innerHTML = galleryHtml(imageList(n), true); applyWatermarks(); }
-    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — enjoy!</div>';
+    if(gal){ gal.innerHTML = galleryHtmlFull(imageList(n)); applyWatermarks(); }
+    if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — kisi page par tap karein, fullscreen khulega!</div>';
   }else{
     if(area) area.innerHTML = '<div class="notice ok">✅ Ye note aap khareed chuke hain — enjoy!</div>' +
       (n.file_url ? '<button class="btn" onclick="downloadStampedPdf('+n.note_id+')">⬇ Download (aapke naam ke watermark ke saath)</button> ' +
@@ -1095,8 +1153,8 @@ VIEWS.wallet = async function(){
       '<div class="statcard"><div class="lbl">Total earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
     '<div class="notice">When your note sells, <b>'+myCommission().earnPct+'% goes to your wallet</b> and '+Math.round(myCommission().rate*100)+'% is the platform commission'+(myCommission().plan!=="free"?" ("+planName(myCommission().plan)+" plan)":"")+"</div>" +
-    '<div class="fcard" style="margin-bottom:24px;border:2px dashed var(--brand)"><h2>🎁 Invite & earn — Rs 20 bonus</h2>' +
-    '<div class="sub">Apna referral link doston ko bhejo. Jab koi aapke link se join karega to <b>aapko + aapke dost ko dono ko Rs 20</b> wallet bonus milega!</div>' +
+    '<div class="fcard" style="margin-bottom:24px;border:2px dashed var(--brand)"><h2>🎁 Invite & earn — 10% lifetime commission</h2>' +
+    '<div class="sub">Apna referral link doston ko bhejo. Jab aapka referred dost <b>notes sale karega</b> to har sale par <b>10% aapke wallet</b> me aayega — <b>hamesha ke liye!</b><br><span style="font-size:13px">Split: sale karne wale ko 70% · aapko 10% · platform ko 20% (ye 10% platform ke hisse me se kat-ta hye, seller ke 70% me se nahi).</span></div>' +
     (me.referral_code
       ? '<div class="frow2"><div class="field"><label>Your referral code</label><input value="'+esc(me.referral_code)+'" readonly onclick="this.select()"></div>' +
         '<div class="field"><label>Share link</label><input value="'+esc(myReferralLink())+'" readonly onclick="this.select()"></div></div>' +

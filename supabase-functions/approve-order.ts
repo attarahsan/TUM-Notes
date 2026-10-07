@@ -64,8 +64,25 @@ serve(async (req) => {
     const commission = Math.round(amount * rate);
     const earning = amount - commission;
 
+    // referral: referrer gets 10% of the sale, cut from the ADMIN's share
+    // (seller keeps their full 70/77/85%; admin gets rate-10%)
+    let referrerUid: string | null = null;
+    let referrerCut = 0;
+    try {
+      const { data: srow } = await supa.from("users").select("referred_by").eq("uid", o.seller_id).single();
+      const refCode = (srow as any)?.referred_by;
+      if (refCode) {
+        const { data: ref } = await supa.from("users").select("uid").eq("referral_code", refCode).limit(1).single();
+        if ((ref as any)?.uid && (ref as any).uid !== o.seller_id) {
+          referrerUid = (ref as any).uid as string;
+          referrerCut = Math.round(amount * 0.10);
+        }
+      }
+    } catch { /* no referrer → admin keeps full commission */ }
+    const adminCut = commission - referrerCut;
+
     const { error: oErr } = await supa.from("orders")
-      .update({ status: "approved", commission, seller_earning: earning }).eq("order_id", order_id);
+      .update({ status: "approved", commission: adminCut, seller_earning: earning, referrer_uid: referrerUid, referrer_cut: referrerCut }).eq("order_id", order_id);
     if (oErr) return J({ error: oErr.message }, 500);
 
     const { data: s } = await supa.from("users").select("wallet,total_earnings").eq("uid", o.seller_id).single();
@@ -74,16 +91,24 @@ serve(async (req) => {
       total_earnings: (Number(s.total_earnings) || 0) + earning,
     }).eq("uid", o.seller_id);
 
+    if (referrerUid && referrerCut > 0) {
+      const { data: ru } = await supa.from("users").select("wallet,total_earnings").eq("uid", referrerUid).single();
+      if (ru) await supa.from("users").update({
+        wallet: (Number(ru.wallet) || 0) + referrerCut,
+        total_earnings: (Number(ru.total_earnings) || 0) + referrerCut,
+      }).eq("uid", referrerUid);
+    }
+
     const { data: a } = await supa.from("users").select("wallet,total_earnings").eq("uid", auid).single();
     if (a) await supa.from("users").update({
-      wallet: (Number(a.wallet) || 0) + commission,
-      total_earnings: (Number(a.total_earnings) || 0) + commission,
+      wallet: (Number(a.wallet) || 0) + adminCut,
+      total_earnings: (Number(a.total_earnings) || 0) + adminCut,
     }).eq("uid", auid);
 
     const { data: n } = await supa.from("notes").select("downloads").eq("note_id", o.note_id).single();
     if (n) await supa.from("notes").update({ downloads: (Number(n.downloads) || 0) + 1 }).eq("note_id", o.note_id);
 
-    return J({ ok: true, status: "approved", commission, earning });
+    return J({ ok: true, status: "approved", commission: adminCut, earning, referrer_cut: referrerCut });
   } catch (e) {
     return J({ error: String((e as Error)?.message || e) }, 500);
   }

@@ -52,14 +52,17 @@ WHERE referral_code IS NULL;
 -- ---------- notes: views ----------
 ALTER TABLE public.notes ADD COLUMN IF NOT EXISTS views integer NOT NULL DEFAULT 0;
 
--- ---------- signup trigger: referral bonus (SECURITY DEFINER so it can credit referrer) ----------
+-- ---------- signup trigger: NO cash referral bonus anymore ----------
+-- Referral program (2026-10-08): referrer earns 10% of the referred user's future
+-- note sales (taken from the admin's 30% share: seller 70 / admin 20 / referrer 10).
+-- Signup only records who referred whom; no Rs 20 is paid here.
 CREATE OR REPLACE FUNCTION public.users_signup_defaults()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   ref_uid text;
   ref_code text;
 BEGIN
-  NEW.wallet := 30;
+  NEW.wallet := 20;
   NEW.total_earnings := 0;
   NEW.plan := 'free';
   NEW.note_limit := 25;
@@ -73,9 +76,7 @@ BEGIN
     SELECT u.uid, u.referral_code INTO ref_uid, ref_code
     FROM public.users u WHERE u.referral_code = NEW.referred_by LIMIT 1;
     IF ref_uid IS NOT NULL AND ref_uid <> NEW.uid THEN
-      UPDATE public.users SET wallet = wallet + 20, total_earnings = total_earnings + 20 WHERE uid = ref_uid;
-      NEW.wallet := NEW.wallet + 20;
-      NEW.referred_by := ref_code;
+      NEW.referred_by := ref_code; -- record only; 10% commission comes from their sales
     ELSE
       NEW.referred_by := NULL;
     END IF;
