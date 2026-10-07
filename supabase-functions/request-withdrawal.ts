@@ -22,11 +22,16 @@ serve(async (req) => {
     const { data: { user } } = await supa.auth.getUser(jwt);
     if (!user) return J({ error: "bad token" }, 401);
 
-    const { amount, easypaisa_number, withdraw_pass_hash } = await req.json();
+    const { amount, method, account_title, account_number, easypaisa_number, withdraw_pass_hash } = await req.json();
     const amt = Math.floor(Number(amount) || 0);
-    if (!(amt >= 500)) return J({ error: "Min withdrawal Rs 500" }, 400);
-    if (!easypaisa_number || String(easypaisa_number).length < 10)
-      return J({ error: "Easypaisa number ghalat hye" }, 400);
+    const METHODS = ["Easypaisa","JazzCash","Meezan Bank","HBL","UBL"];
+    if (!(amt >= 300)) return J({ error: "Min withdrawal Rs 300" }, 400);
+    // new-style method fields; fall back to the old easypaisa_number for old clients
+    const mMethod = METHODS.includes(method) ? method : "Easypaisa";
+    const mTitle = String(account_title || "").trim();
+    const mAcct = String(account_number || easypaisa_number || "").trim();
+    if (!mTitle) return J({ error: "Account title zaroori hye" }, 400);
+    if (mAcct.length < 10) return J({ error: "Account / mobile number ghalat hye" }, 400);
 
     const { data: u } = await supa.from("users").select("wallet,withdraw_pass_hash,name").eq("uid", user.id).single();
     if (!u) return J({ error: "user not found" }, 404);
@@ -40,7 +45,9 @@ serve(async (req) => {
 
     // request_id is an auto-increment integer — let the DB assign it; timestamp is bigint millis
     const { data: wd, error: iErr } = await supa.from("withdrawals").insert({
-      seller_id: user.id, seller_name: u.name || "", amount: amt, easypaisa_number,
+      seller_id: user.id, seller_name: u.name || "", amount: amt,
+      method: mMethod, account_title: mTitle, account_number: mAcct,
+      easypaisa_number: mMethod === "Easypaisa" ? mAcct : null,
       status: "pending", timestamp: Date.now(),
     }).select("request_id").single();
     if (iErr) {
