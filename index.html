@@ -1135,6 +1135,7 @@ async function adminDash(s, tab){
         : (n.file_url ? '<a class="btn small ghost" style="text-decoration:none" href="'+esc(n.file_url)+'" target="_blank" rel="noopener">📄 View file</a> ' : '<span style="font-size:12px;color:var(--red)">no file</span> ')) +
       (n.status !== "approved" ? '<button class="btn small" onclick="adminSetStatus('+n.note_id+',\'approved\',\''+tab+'\')">Approve</button> ' : '') +
       (n.status !== "rejected" ? '<button class="btn small danger" onclick="adminSetStatus('+n.note_id+',\'rejected\',\''+tab+'\')">Reject</button> ' : '') +
+      '<button class="btn small danger" onclick="adminDeleteNote('+n.note_id+',\''+tab+'\','+(n.status==="pending"?"true":"false")+')">'+(n.status==="pending"?"🗑️ Reject & Delete":"🗑️ Delete")+'</button> ' +
       (n.is_reported ? '<button class="btn small ghost" onclick="adminDismissReport('+n.note_id+',\''+tab+'\')">Dismiss report</button>' : '') +
       '</td></tr>';
     }).join("");
@@ -1152,6 +1153,37 @@ async function adminSetStatus(note_id, status, tab){
 }
 async function adminDismissReport(note_id, tab){
   await db.from("notes").update({is_reported: false, report_reason: ""}).eq("note_id", note_id);
+  adminDash(currentUser(), tab);
+}
+async function adminDeleteNote(note_id, tab, wasPending){
+  try{
+    const {data: sold} = await db.from("orders").select("order_id").eq("note_id", note_id).eq("status","approved").limit(1);
+    if(sold && sold.length){
+      alert("❌ Ye note pehle hi becha ja chuka hai — delete nahi ho sakta (buyers ka record kharab ho jayega). Sirf Reject karo taake listing se hat jaye.");
+      return;
+    }
+  }catch(e){}
+  if(!confirm((wasPending ? "Reject karke " : "") + "Is note ko PERMANENTLY delete karna hai? Ye wapas nahi aayega.")) return;
+  try{
+    const {data: n} = await db.from("notes").select("file_url,image_urls").eq("note_id", note_id).single();
+    const toPath = function(u){
+      try{ var m = String(u||"").split("/storage/v1/object/public/notes/"); return m.length > 1 ? decodeURIComponent(m[1].split("?")[0]) : null; }
+      catch(e){ return null; }
+    };
+    const paths = [];
+    if(n){
+      const p1 = toPath(n.file_url); if(p1) paths.push(p1);
+      try{
+        const arr = JSON.parse(n.image_urls || "[]");
+        (Array.isArray(arr) ? arr : [n.image_urls]).forEach(function(u){ const q = toPath(u); if(q) paths.push(q); });
+      }catch(e){ const q2 = toPath(n.image_urls); if(q2) paths.push(q2); }
+    }
+    if(paths.length) await db.storage.from("notes").remove(paths);
+  }catch(e){}
+  try{ await db.from("orders").delete().eq("note_id", note_id).neq("status","approved"); }catch(e){}
+  const {error} = await db.from("notes").delete().eq("note_id", note_id);
+  if(error){ alert("Failed: " + error.message); return; }
+  toast("🗑️ Note deleted");
   adminDash(currentUser(), tab);
 }
 
