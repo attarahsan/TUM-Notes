@@ -1277,8 +1277,13 @@ async function openPrivateChat(uid, name){
   const th = document.getElementById("pmThread"); th.style.display = "";
   document.getElementById("pmName").textContent = pmPartnerName;
   document.getElementById("pmAvatar").textContent = pmAvatarHtml(pmPartnerName);
-  const box = document.getElementById("pmBox");
-  box.innerHTML = '<div class="loading">Loading…</div>';
+  reloadPmThread();
+}
+
+async function reloadPmThread(){
+  const u = currentUser(); if(!u || !pmPartnerUid) return;
+  const uid = pmPartnerUid;
+  const box = document.getElementById("pmBox"); if(!box) return;
   try{
     const {data, error} = await db.from("private_messages")
       .select("id,sender_uid,sender_name,text,created_at")
@@ -1311,10 +1316,7 @@ async function sendPmMsg(ev){
   lastPmSent = now; inp.value = "";
   const {error} = await db.rpc("send_private_message", {p_to_uid: pmPartnerUid, p_text: t});
   if(error){ toast("Failed: " + error.message); lastPmSent = 0; return; }
-  const box = document.getElementById("pmBox");
-  const em = box.querySelector(".empty"); if(em) em.remove();
-  // optimistic render; realtime will also catch it (dedup by id unknown yet — realtime insertAdjacentHTML checks data-mid, ours has none, fine)
-  loadConversations();
+  reloadPmThread();
 }
 
 function subscribePm(u){
