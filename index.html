@@ -53,6 +53,8 @@ body.light .chatmsg{background:#f1ece0}
 body.light .chatmsg.mine{background:linear-gradient(135deg,#f0d878,#d9b83c)}
 body.light .conv:hover{background:rgba(168,132,42,.1)}
 body.light .notecard{background:rgba(168,132,42,.08);border-color:rgba(168,132,42,.45)}
+body.light footer.site{background:#f3eee0}
+body.light footer.site b{color:#3a2f14}
 body.light input,body.light textarea,body.light select{background:#fffdf8;color:var(--ink);border-color:var(--line)}
 ::selection{background:rgba(212,175,55,.35);color:#fff8e1}
 ::-webkit-scrollbar{width:10px;height:10px}
@@ -338,7 +340,7 @@ img{max-width:100%;height:auto}
   <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
   <div class="logo" onclick="go('home')">TUM Notes Hub<small>TIMES UNIVERSITY MULTAN</small></div>
   <span class="live-dot" id="liveDot" title="Realtime connection"><i></i>Live</span>
-  <button class="hamburger" id="themeBtnTop" onclick="toggleTheme()" title="Dark / Light mode" style="margin-left:auto;font-size:17px">🌙</button>
+  <button class="themebtn" id="themeBtnTop" onclick="toggleTheme()" title="Dark / Light mode" style="margin-left:auto;font-size:17px;background:none;border:none;cursor:pointer">🌙</button>
 </div>
 <aside id="sidebar">
   <div class="side-head">
