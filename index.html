@@ -262,6 +262,11 @@ img{max-width:100%;height:auto}
 .pm-head .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#e9c85a,#9c7a1e);color:#1a150a;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center}
 .pm-head b{font-size:16px}
 .chatmsg .who.clickable{cursor:pointer;text-decoration:underline}
+/* chat v3: note cards, voice recording */
+.notecard{display:flex;gap:10px;align-items:center;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.4);border-radius:12px;padding:10px 12px;margin-top:8px;cursor:pointer}
+.notecard:hover{background:rgba(212,175,55,.16)}
+.notecard-slot{min-height:20px}
+.btn.rec{background:#dc2626!important;color:#fff!important;animation:pulse 1s infinite}
 /* anonymous chat */
 .chatbox{border:1px solid var(--line);border-radius:14px;background:var(--card);height:52vh;min-height:300px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .chatmsg{max-width:85%;background:#1e1e29;border:1px solid var(--line);border-radius:12px;padding:8px 12px;align-self:flex-start}
@@ -621,7 +626,10 @@ function toggleSidebar(forceClose){
   sb.classList.toggle("open", open);
   if(ov) ov.classList.toggle("show", open && window.innerWidth < 1024);
 }
-function go(view, arg){ setNav(view); if(window.innerWidth < 1024) toggleSidebar(true); if(view !== "chat" && typeof chatSub !== "undefined" && chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; } currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
+function stopChatSubs(){
+  ["chatSub","pmSub","groupSub"].forEach(function(k){ try{ if(window[k]){ window[k].unsubscribe(); window[k] = null; } }catch(e){} });
+}
+function go(view, arg){ setNav(view); if(window.innerWidth < 1024) toggleSidebar(true); if(view !== "chat") stopChatSubs(); if(view !== "chat" && typeof chatSub !== "undefined" && chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; } currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
 let currentView = "home", currentArg = null, currentNote = null;
 
 /* ================= AUTH ================= */
@@ -856,7 +864,7 @@ let DEPARTMENTS = [];
 
 /* ================= DATA ================= */
 async function approvedNotes(limit){
-  let q = db.from("notes").select("*").eq("status","approved").order("created_at",{ascending:false});
+  let q = db.from("notes").select("*").eq("status","approved").eq("visibility","public").order("created_at",{ascending:false});
   if(limit) q = q.limit(limit);
   const {data, error} = await q;
   if(error) throw error;
@@ -1144,6 +1152,57 @@ function chatWithSeller(sellerUid, sellerName){
 }
 
 /* ================= CHAT v2: real names + WhatsApp-style private ================= */
+/* ================= CHAT v3: username, voice, note-share, groups ================= */
+let groupSub = null, groupId = null, groupName = "";
+let voiceRec = null, voiceChunks = [], voiceTimer = null, voiceSecs = 0, voiceSendType = null;
+const noteCache = {};
+const BADWORDS_CLIENT = ["fuck","shit","bitch","asshole","dick","pussy","bastard","whore","slut","lodu","chutiya","chutia","bhosdike","madarchod","behenchod","gandu","randi","harami","kanjar","lund","gaand"];
+function containsBadWords(t){
+  if(!t) return false;
+  const low = " " + t.toLowerCase() + " ";
+  return BADWORDS_CLIENT.some(function(w){ return low.indexOf(w) !== -1; });
+}
+async function getMyUsername(){
+  let u = currentUser(); if(!u) return null;
+  if(u.username) return u.username;
+  try{
+    const {data} = await db.from("users").select("username").eq("uid", u.uid).limit(1);
+    const un = data && data[0] && data[0].username;
+    if(un){ u.username = un; localStorage.setItem("tum_user", JSON.stringify(u)); return un; }
+  }catch(e){}
+  return null;
+}
+function renderUsernameSetup(){
+  app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat</div>' +
+    '<div class="card" style="max-width:440px;margin:30px auto;text-align:center;padding:30px 24px">' +
+    '<div style="font-size:44px;margin-bottom:10px">\uD83D\uDC64</div>' +
+    '<h2 style="margin-bottom:8px">Apna username set karein</h2>' +
+    '<div class="sub" style="margin-bottom:18px">Chat me aap <b>username</b> se nazar aayenge — Gmail wale naam se nahi. Yehi naam group invites ke liye bhi use hoga.</div>' +
+    '<form onsubmit="saveUsername(event)"><div class="field" style="text-align:left"><label>Username (3-20 characters: a-z, 0-9, _)</label>' +
+    '<input id="unInput" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="e.g. ahmed_notes" autocomplete="off"></div>' +
+    '<div id="unMsg"></div><button class="btn" type="submit" style="width:100%">Save & open chat</button></form></div>';
+  const inp = document.getElementById("unInput"); if(inp) inp.focus();
+}
+async function saveUsername(ev){
+  ev.preventDefault();
+  const inp = document.getElementById("unInput");
+  const msg = document.getElementById("unMsg");
+  const v = (inp.value || "").trim();
+  msg.innerHTML = "Saving…";
+  const {error} = await db.rpc("set_username", {p_username: v});
+  if(error){
+    const m = /taken/i.test(error.message) ? "Ye username kisi ne le liya hye — koi aur try karein." :
+              /bad username/i.test(error.message) ? "3-20 characters: sirf a-z, 0-9 aur _" : error.message;
+    msg.innerHTML = '<div class="err">' + esc(m) + "</div>"; return;
+  }
+  const u = currentUser(); u.username = v; localStorage.setItem("tum_user", JSON.stringify(u));
+  toast("Username set: @" + v);
+  VIEWS.chat();
+}
+function voiceHtml(url){
+  return url ? '<audio controls preload="none" src="' + esc(url) + '" style="width:200px;max-width:100%;margin-top:6px"></audio>' : "";
+}
+
 let chatSub = null, pmSub = null, lastChatSent = 0, lastPmSent = 0;
 let pmPartnerUid = null, pmPartnerName = "";
 
@@ -1157,17 +1216,22 @@ function chatMsgHtml(m, me){
 
 VIEWS.chat = async function(arg){
   const u = requireLogin(); if(!u) return;
-  if(chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; }
-  if(pmSub){ try{ pmSub.unsubscribe(); }catch(e){} pmSub = null; }
-  pmPartnerUid = null;
-  app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat</div>' +
-    '<div class="chattabs"><button id="tabGroup" class="active" onclick="showChatTab(\'group\')">\uD83D\uDC65 Group</button>' +
-    '<button id="tabPrivate" onclick="showChatTab(\'private\')">\uD83D\uDCAC Private <span id="pmBadge"></span></button></div>' +
+  stopChatSubs();
+  pmPartnerUid = null; groupId = null;
+  const un = await getMyUsername();
+  if(!un){ renderUsernameSetup(); return; }
+  const startTab = (arg && arg.tab) || ((arg && arg.with) ? "private" : "group");
+  app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat <span style="font-size:13px;color:var(--muted);font-weight:600">@' + esc(un) + ' <a href="#" onclick="renderUsernameSetup();return false;" style="color:var(--brand);font-size:12px">edit</a></span></div>' +
+    '<div class="chattabs"><button id="tabGroup" onclick="showChatTab(\'group\')">\uD83D\uDC65 Group</button>' +
+    '<button id="tabPrivate" onclick="showChatTab(\'private\')">\uD83D\uDCAC Private <span id="pmBadge"></span></button>' +
+    '<button id="tabGroups" onclick="showChatTab(\'groups\')">\uD83D\uDC6A Groups <span id="grpBadge"></span></button></div>' +
     '<div id="chatGroupPane">' +
-      '<div class="sub" style="margin-bottom:12px">Yahan sab apne <b>asal naam</b> se likhte hain. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.</div>' +
+      '<div class="sub" style="margin-bottom:12px">Yahan sab apne <b>username</b> se likhte hain. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.</div>' +
       '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
-      '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="Apna message likhein…" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
-      '<div class="sub" style="margin-top:8px">\u26A0\uFE0F Galat zaban ya spam par admin message delete kar sakta hye.</div>' +
+      '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="Apna message likhein…" autocomplete="off">' +
+      '<button type="button" class="btn ghost" id="voiceBtnGroup" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
+      '<button class="btn" type="submit">Send</button></form>' +
+      '<div class="sub" style="margin-top:8px">\u26A0\uFE0F Galat zaban wale messages auto-delete ho jate hain.</div>' +
     '</div>' +
     '<div id="chatPrivatePane" style="display:none">' +
       '<div id="convList"><div class="loading">Loading chats…</div></div>' +
@@ -1175,23 +1239,45 @@ VIEWS.chat = async function(arg){
         '<button class="back" onclick="closePmThread()">\u2190 Back</button>' +
         '<div class="pm-head"><div class="avatar" id="pmAvatar">?</div><div><b id="pmName"></b><div class="sub" style="margin:0">private chat</div></div></div>' +
         '<div id="pmBox" class="chatbox"><div class="loading">Loading…</div></div>' +
-        '<form class="chatform" onsubmit="sendPmMsg(event)"><input id="pmInp" maxlength="500" placeholder="Message likhein…" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
+        '<form class="chatform" onsubmit="sendPmMsg(event)"><input id="pmInp" maxlength="500" placeholder="Message likhein…" autocomplete="off">' +
+        '<button type="button" class="btn ghost" onclick="openNotePicker(\'pm\')" title="Attach note">\uD83D\uDCCE</button>' +
+        '<button type="button" class="btn ghost" id="voiceBtnPm" onclick="toggleVoiceRecording(\'pm\')" title="Voice message">\uD83C\uDFA4</button>' +
+        '<button class="btn" type="submit">Send</button></form>' +
+      '</div>' +
+    '</div>' +
+    '<div id="chatGroupsPane" style="display:none">' +
+      '<button class="btn" onclick="showNewGroupModal()" style="margin-bottom:12px">＋ New group</button>' +
+      '<div id="groupList"><div class="loading">Loading groups…</div></div>' +
+      '<div id="groupThread" style="display:none">' +
+        '<button class="back" onclick="closeGroupThread()">\u2190 Back</button>' +
+        '<div class="pm-head" style="cursor:pointer" onclick="showGroupMembers()"><div class="avatar" id="grpAvatar">👥</div><div><b id="grpName"></b><div class="sub" style="margin:0" id="grpSub">members</div></div></div>' +
+        '<div id="grpBox" class="chatbox"><div class="loading">Loading…</div></div>' +
+        '<form class="chatform" onsubmit="sendGroupMsg(event)"><input id="grpInp" maxlength="500" placeholder="Message likhein…" autocomplete="off">' +
+        '<button type="button" class="btn ghost" onclick="openNotePicker(\'group\')" title="Attach note">\uD83D\uDCCE</button>' +
+        '<button type="button" class="btn ghost" id="voiceBtnGrp" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
+        '<button class="btn" type="submit">Send</button></form>' +
       '</div>' +
     '</div>';
   loadGroupChat(u);
   loadConversations();
+  loadMyGroups();
   subscribePm(u);
+  showChatTab(startTab);
   if(arg && arg.with && arg.with !== u.uid){
     openPrivateChat(arg.with, arg.name || "User");
   }
 };
 
 function showChatTab(which){
-  document.getElementById("tabGroup").classList.toggle("active", which === "group");
-  document.getElementById("tabPrivate").classList.toggle("active", which === "private");
+  ["group","private","groups"].forEach(function(t){
+    const b = document.getElementById(t === "groups" ? "tabGroups" : "tab" + t.charAt(0).toUpperCase() + t.slice(1));
+    if(b) b.classList.toggle("active", which === t);
+  });
   document.getElementById("chatGroupPane").style.display = which === "group" ? "" : "none";
   document.getElementById("chatPrivatePane").style.display = which === "private" ? "" : "none";
+  document.getElementById("chatGroupsPane").style.display = which === "groups" ? "" : "none";
   if(which === "private") loadConversations();
+  if(which === "groups") loadMyGroups();
 }
 
 async function loadGroupChat(u){
@@ -1224,8 +1310,9 @@ async function sendChatMsg(ev){
   const now = Date.now();
   if(now - lastChatSent < 3000){ toast("Thoda rukein — 3 second me 1 message \u23F3"); return; }
   lastChatSent = now; inp.value = "";
+  if(containsBadWords(t)){ toast("\u26A0\uFE0F Ghalat zaban use nahi kar sakte"); lastChatSent = 0; return; }
   const {error} = await db.rpc("send_chat_message", {p_text: t});
-  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? "Thoda rukein — 3 second me 1 message \u23F3" : error.message)); lastChatSent = 0; }
+  if(error){ toast("Failed: " + (/inappropriate/i.test(error.message) ? "\u26A0\uFE0F Ghalat zaban use nahi kar sakte" : /slow down/i.test(error.message) ? "Thoda rukein — 3 second me 1 message \u23F3" : error.message)); lastChatSent = 0; }
 }
 
 /* ---------- private chat ---------- */
@@ -1293,6 +1380,7 @@ async function reloadPmThread(){
     const msgs = data || [];
     box.innerHTML = msgs.length ? msgs.map(function(m){ return pmMsgHtml(m, u); }).join("") : '<div class="empty">Koi message nahi — pehla message bhejein! \uD83D\uDC4B</div>';
     box.scrollTop = box.scrollHeight;
+    resolveNoteCards(box);
     db.rpc("mark_chat_read", {p_partner_uid: uid}).then(function(){ loadConversations(); }, function(){});
   }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: ' + esc(e.message) + '</div>'; }
 }
@@ -1314,8 +1402,9 @@ async function sendPmMsg(ev){
   const now = Date.now();
   if(now - lastPmSent < 2000){ toast("Thoda rukein… \u23F3"); return; }
   lastPmSent = now; inp.value = "";
+  if(containsBadWords(t)){ toast("\u26A0\uFE0F Ghalat zaban use nahi kar sakte"); lastPmSent = 0; return; }
   const {error} = await db.rpc("send_private_message", {p_to_uid: pmPartnerUid, p_text: t});
-  if(error){ toast("Failed: " + error.message); lastPmSent = 0; return; }
+  if(error){ toast("Failed: " + (/inappropriate/i.test(error.message) ? "\u26A0\uFE0F Ghalat zaban use nahi kar sakte" : error.message)); lastPmSent = 0; return; }
   reloadPmThread();
 }
 
@@ -1335,11 +1424,341 @@ function subscribePm(u){
             box.insertAdjacentHTML("beforeend", pmMsgHtml(m, u));
             box.scrollTop = box.scrollHeight;
           }
+          resolveNoteCards(box);
           if(m.receiver_uid === u.uid) db.rpc("mark_chat_read", {p_partner_uid: pmPartnerUid});
         }
       }
       loadConversations();
     }).subscribe();
+}
+
+/* ================= CHAT v3: voice, note-share, groups ================= */
+async function toggleVoiceRecording(sendType){
+  if(voiceRec && voiceRec.state !== "inactive"){ stopVoiceRecording(false); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast("Voice recording is browser me supported nahi"); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    voiceChunks = []; voiceSecs = 0; voiceSendType = sendType;
+    voiceRec = new MediaRecorder(stream);
+    voiceRec.ondataavailable = function(e){ if(e.data.size) voiceChunks.push(e.data); };
+    voiceRec.onstop = function(){ stream.getTracks().forEach(function(t){ t.stop(); }); finishVoiceRecording(); };
+    voiceRec.start();
+    const btn = voiceBtnFor(sendType);
+    if(btn){ btn.dataset.orig = btn.innerHTML; btn.innerHTML = "🔴 0s"; btn.classList.add("rec"); }
+    voiceTimer = setInterval(function(){
+      voiceSecs++;
+      const b = voiceBtnFor(sendType);
+      if(b) b.innerHTML = "🔴 " + voiceSecs + "s — tap to send";
+      if(voiceSecs >= 60) stopVoiceRecording(false);
+    }, 1000);
+    toast("Recording… dobara dabayein to send ho jayega");
+  }catch(e){ toast("Mic access nahi mila: " + e.message); }
+}
+function voiceBtnFor(sendType){
+  return document.getElementById(sendType === "group" ? "voiceBtnGroup" : sendType === "pm" ? "voiceBtnPm" : "voiceBtnGrp");
+}
+function stopVoiceRecording(cancel){
+  if(voiceTimer){ clearInterval(voiceTimer); voiceTimer = null; }
+  const btn = voiceBtnFor(voiceSendType);
+  if(btn){ btn.innerHTML = btn.dataset.orig || "🎤"; btn.classList.remove("rec"); }
+  if(!voiceRec) return;
+  if(cancel){ voiceRec.onstop = null; try{ voiceRec.stop(); }catch(e){} voiceRec = null; return; }
+  try{ voiceRec.stop(); }catch(e){ voiceRec = null; }
+}
+async function finishVoiceRecording(){
+  const rec = voiceRec; voiceRec = null;
+  const btn = voiceBtnFor(voiceSendType);
+  if(btn){ btn.innerHTML = btn.dataset.orig || "🎤"; btn.classList.remove("rec"); }
+  const type = voiceSendType; voiceSendType = null;
+  if(!rec) return;
+  const blob = new Blob(voiceChunks, {type: rec.mimeType || "audio/webm"});
+  if(blob.size < 1000){ toast("Recording bohat chhoti thi"); return; }
+  toast("Uploading voice…");
+  const url = await uploadVoice(blob);
+  if(!url) return;
+  try{
+    if(type === "group"){
+      const {error} = await db.rpc("send_chat_message", {p_text: "", p_voice_url: url});
+      if(error) throw error;
+    }else if(type === "pm"){
+      if(!pmPartnerUid) return;
+      const {error} = await db.rpc("send_private_message", {p_to_uid: pmPartnerUid, p_text: "", p_voice_url: url});
+      if(error) throw error;
+      reloadPmThread();
+    }else if(type === "grp"){
+      if(!groupId) return;
+      const {error} = await db.rpc("send_group_message", {p_group_id: groupId, p_text: "", p_voice_url: url});
+      if(error) throw error;
+      reloadGroupThread();
+    }
+  }catch(e){ toast("Failed: " + (/inappropriate/i.test(e.message) ? "⚠️ Ghalat zaban use nahi kar sakte" : e.message)); }
+}
+async function uploadVoice(blob){
+  const u = currentUser(); if(!u) return null;
+  const path = u.uid + "/" + Date.now() + ".webm";
+  try{
+    const {error} = await db.storage.from("chat-voice").upload(path, blob, {contentType: "audio/webm"});
+    if(error) throw error;
+    return db.storage.from("chat-voice").getPublicUrl(path).data.publicUrl;
+  }catch(e){ toast("Voice upload failed: " + e.message); return null; }
+}
+
+/* ---------- note attach / note cards ---------- */
+function noteCardSlot(noteId){
+  return noteId ? '<div class="notecard-slot" data-note="' + noteId + '"><div class="sub">Loading note…</div></div>' : "";
+}
+async function resolveNoteCards(scopeEl){
+  if(!scopeEl) return;
+  const slots = scopeEl.querySelectorAll(".notecard-slot");
+  const need = [];
+  slots.forEach(function(s){ const id = s.dataset.note; if(id && !noteCache[id]) need.push(id); });
+  if(need.length){
+    try{
+      const {data} = await db.from("notes").select("note_id,title,subject,price,visibility").in("note_id", need.map(Number));
+      (data || []).forEach(function(n){ noteCache[n.note_id] = n; });
+      need.forEach(function(id){ if(!noteCache[id]) noteCache[id] = null; });
+    }catch(e){}
+  }
+  slots.forEach(function(s){
+    const n = noteCache[s.dataset.note];
+    if(!n){ s.innerHTML = '<div class="sub">Note not available</div>'; return; }
+    s.innerHTML = '<div class="notecard" onclick="go(\'detail\',' + n.note_id + ')">' +
+      '<div style="font-size:24px">📝</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(n.title || "Untitled") + '</div>' +
+      '<div class="sub" style="margin:2px 0 0">' + esc(n.subject || "") + ' · ' + priceStr(n.price) + '</div></div>' +
+      (n.visibility === "private" ? '<span class="badge pending">🔒 private</span>' : '<span style="color:var(--brand);font-weight:800">→</span>') + '</div>';
+  });
+}
+function openNotePicker(sendType){
+  const u = currentUser(); if(!u) return;
+  const ov = document.createElement("div");
+  ov.id = "notePickerOv";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px";
+  ov.innerHTML = '<div class="card" style="max-width:480px;width:100%;max-height:80vh;overflow-y:auto">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>📎 Note attach karein</h3>' +
+    '<button class="btn ghost" onclick="document.getElementById(\'notePickerOv\').remove()">✕</button></div>' +
+    '<div class="sub" style="margin-bottom:12px">Apne notes me se chunein — 🔒 private notes sirf is chat me nazar aayenge.</div>' +
+    '<div id="npList"><div class="loading">Loading…</div></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
+  db.from("notes").select("note_id,title,subject,price,visibility,status").eq("seller_id", u.uid).order("created_at", {ascending:false}).limit(50)
+    .then(function(r){
+      const list = document.getElementById("npList"); if(!list) return;
+      const notes = (r.data || []).filter(function(n){ return n.status === "approved"; });
+      if(!notes.length){ list.innerHTML = '<div class="empty">Koi note nahi — pehle Sell se upload karein.</div>'; return; }
+      list.innerHTML = notes.map(function(n){
+        return '<div class="conv" onclick="attachNoteToChat(' + n.note_id + ',\'' + sendType + '\')">' +
+          '<div style="font-size:24px">📝</div><div class="conv-main"><div class="conv-top"><b>' + esc(n.title || "Untitled") + '</b><span class="ts">' + priceStr(n.price) + '</span></div>' +
+          '<div class="conv-sub"><span>' + esc(n.subject || "") + '</span>' + (n.visibility === "private" ? '<span class="badge pending">🔒 private</span>' : '') + '</div></div></div>';
+      }).join("");
+    });
+}
+async function attachNoteToChat(noteId, sendType){
+  const ov = document.getElementById("notePickerOv"); if(ov) ov.remove();
+  try{
+    if(sendType === "pm"){
+      if(!pmPartnerUid) return;
+      const {error} = await db.rpc("send_private_message", {p_to_uid: pmPartnerUid, p_text: "", p_note_id: noteId});
+      if(error) throw error;
+      reloadPmThread();
+    }else{
+      if(!groupId) return;
+      const {error} = await db.rpc("send_group_message", {p_group_id: groupId, p_text: "", p_note_id: noteId});
+      if(error) throw error;
+      reloadGroupThread();
+    }
+    toast("📎 Note attached");
+  }catch(e){ toast("Failed: " + e.message); }
+}
+
+/* ---------- groups ---------- */
+function grpMsgHtml(m, me){
+  const mine = m.sender_uid === me.uid;
+  return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
+    (mine ? "" : '<div class="who">' + esc(m.sender_name || "User") + '</div>') +
+    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + noteCardSlot(m.note_id) +
+    '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+}
+async function loadMyGroups(){
+  const u = currentUser(); if(!u) return;
+  const list = document.getElementById("groupList"); if(!list) return;
+  try{
+    const {data, error} = await db.rpc("my_groups");
+    if(error) throw error;
+    const gs = data || [];
+    let unread = 0, pending = 0;
+    gs.forEach(function(g){ unread += Number(g.unread_count) || 0; if(g.pending_invite) pending++; });
+    const badge = document.getElementById("grpBadge");
+    if(badge) badge.innerHTML = (unread + pending) ? '<span class="unread">' + (unread + pending) + '</span>' : '';
+    const inv = gs.filter(function(g){ return g.pending_invite; });
+    const mem = gs.filter(function(g){ return !g.pending_invite; });
+    let html = "";
+    if(inv.length){
+      html += '<div class="sub" style="margin-bottom:8px;font-weight:800">📩 Group invites</div>' + inv.map(function(g){
+        return '<div class="card" style="margin-bottom:10px"><div style="font-weight:800">👥 ' + esc(g.group_name) + '</div>' +
+          '<div class="sub" style="margin:4px 0 10px">Admin: <b>' + esc(g.admin_name) + '</b> ne aapko add kiya hye</div>' +
+          '<div style="display:flex;gap:8px"><button class="btn" onclick="respondInvite(' + g.group_id + ',true)">✓ Approve</button>' +
+          '<button class="btn ghost" onclick="respondInvite(' + g.group_id + ',false)">Decline</button></div></div>';
+      }).join("");
+    }
+    html += mem.length ? mem.map(function(g){
+      const un2 = Number(g.unread_count) || 0;
+      return '<div class="conv" onclick="openGroup(' + g.group_id + ',\'' + esc(g.group_name).replace(/'/g, "\\'") + '\')">' +
+        '<div class="avatar">👥</div><div class="conv-main">' +
+        '<div class="conv-top"><b>' + esc(g.group_name) + '</b><span class="ts">' + (g.last_at ? fmtDateTime(g.last_at) : "") + '</span></div>' +
+        '<div class="conv-sub"><span>' + esc((g.last_sender ? g.last_sender + ": " : "") + (g.last_text || "").slice(0, 50)) + '</span>' +
+        (un2 ? '<span class="unread">' + un2 + '</span>' : '') + '</div>' +
+        '<div class="sub" style="margin:2px 0 0">' + g.member_count + ' members' + (g.is_admin ? ' · you are admin' : '') + '</div>' +
+        '</div></div>';
+    }).join("") : (inv.length ? "" : '<div class="empty">Koi group nahi — <b>＋ New group</b> se banayein!</div>');
+    list.innerHTML = html;
+  }catch(e){ list.innerHTML = '<div class="err">Groups load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+}
+async function respondInvite(gid, accept){
+  const {error} = await db.rpc("respond_group_invite", {p_group_id: gid, p_accept: accept});
+  if(error){ toast("Failed: " + error.message); return; }
+  toast(accept ? "Group join ho gaya! 🎉" : "Invite decline kar di");
+  loadMyGroups(); loadNotifCount();
+}
+async function openGroup(gid, name){
+  const u = currentUser(); if(!u) return;
+  groupId = gid; groupName = name;
+  showChatTab("groups");
+  document.getElementById("groupList").style.display = "none";
+  document.querySelector('#chatGroupsPane > .btn').style.display = "none";
+  const th = document.getElementById("groupThread"); th.style.display = "";
+  document.getElementById("grpName").textContent = name;
+  reloadGroupThread();
+  subscribeGroup();
+}
+function closeGroupThread(){
+  groupId = null;
+  if(groupSub){ try{ groupSub.unsubscribe(); }catch(e){} groupSub = null; }
+  document.getElementById("groupThread").style.display = "none";
+  document.getElementById("groupList").style.display = "";
+  const nb = document.querySelector('#chatGroupsPane > .btn'); if(nb) nb.style.display = "";
+  loadMyGroups();
+}
+async function reloadGroupThread(){
+  const u = currentUser(); if(!u || !groupId) return;
+  const box = document.getElementById("grpBox"); if(!box) return;
+  try{
+    const {data, error} = await db.from("group_messages")
+      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at")
+      .eq("group_id", groupId).order("created_at", {ascending:true}).limit(200);
+    if(error) throw error;
+    const msgs = data || [];
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return grpMsgHtml(m, u); }).join("") : '<div class="empty">Koi message nahi — pehla message bhejein! 👋</div>';
+    box.scrollTop = box.scrollHeight;
+    resolveNoteCards(box);
+    db.rpc("mark_group_read", {p_group_id: groupId}).then(function(){ loadMyGroups(); }, function(){});
+    try{
+      const mc = await db.rpc("group_member_list", {p_group_id: groupId});
+      const sub = document.getElementById("grpSub");
+      if(sub && mc.data) sub.textContent = mc.data.filter(function(m){ return m.status === "member"; }).length + " members — tap for details";
+    }catch(e){}
+  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+}
+function subscribeGroup(){
+  const u = currentUser(); if(!u || !groupId) return;
+  if(groupSub){ try{ groupSub.unsubscribe(); }catch(e){} }
+  const gid = groupId;
+  groupSub = db.channel("grp-" + gid)
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"group_messages", filter:"group_id=eq." + gid}, function(p){
+      if(currentView !== "chat" || groupId !== gid) return;
+      const box = document.getElementById("grpBox"); if(!box) return;
+      const em = box.querySelector(".empty"); if(em) em.remove();
+      if(box.querySelector('[data-mid="' + p.new.id + '"]')) return;
+      box.insertAdjacentHTML("beforeend", grpMsgHtml(p.new, u));
+      resolveNoteCards(box);
+      box.scrollTop = box.scrollHeight;
+      db.rpc("mark_group_read", {p_group_id: gid});
+    }).subscribe();
+}
+let lastGrpSent = 0;
+async function sendGroupMsg(ev){
+  ev.preventDefault();
+  const u = currentUser(); if(!u || !groupId) return;
+  const inp = document.getElementById("grpInp");
+  const t = (inp.value || "").trim();
+  if(!t) return;
+  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  const now = Date.now();
+  if(now - lastGrpSent < 2000){ toast("Thoda rukein… ⏳"); return; }
+  if(containsBadWords(t)){ toast("⚠️ Ghalat zaban use nahi kar sakte"); return; }
+  lastGrpSent = now; inp.value = "";
+  const {error} = await db.rpc("send_group_message", {p_group_id: groupId, p_text: t});
+  if(error){ toast("Failed: " + (/inappropriate/i.test(error.message) ? "⚠️ Ghalat zaban use nahi kar sakte" : error.message)); lastGrpSent = 0; return; }
+  reloadGroupThread();
+}
+function showNewGroupModal(){
+  const ov = document.createElement("div");
+  ov.id = "newGroupOv";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px";
+  ov.innerHTML = '<div class="card" style="max-width:440px;width:100%">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>👥 New group</h3>' +
+    '<button class="btn ghost" onclick="document.getElementById(\'newGroupOv\').remove()">✕</button></div>' +
+    '<form onsubmit="createGroupSubmit(event)">' +
+    '<div class="field"><label>Group name *</label><input id="ngName" required maxlength="40" placeholder="e.g. Physics Notes Group"></div>' +
+    '<div class="field"><label>Members (usernames, comma se alag)</label><textarea id="ngUsers" rows="2" placeholder="e.g. ahmed_notes, sara_k"></textarea>' +
+    '<div class="sub">Har member ko notification jayegi — approve karne par hi wo add hoga.</div></div>' +
+    '<div id="ngMsg"></div><button class="btn" type="submit" style="width:100%">Create group</button></form></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
+}
+async function createGroupSubmit(ev){
+  ev.preventDefault();
+  const name = document.getElementById("ngName").value.trim();
+  const users = document.getElementById("ngUsers").value.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  const msg = document.getElementById("ngMsg");
+  msg.innerHTML = "Creating…";
+  const {data, error} = await db.rpc("create_group", {p_name: name, p_usernames: users});
+  if(error){ msg.innerHTML = '<div class="err">Failed: ' + esc(error.message) + '</div>'; return; }
+  document.getElementById("newGroupOv").remove();
+  toast("Group ban gaya! 🎉");
+  loadMyGroups();
+  if(data) openGroup(data, name);
+}
+async function showGroupMembers(){
+  if(!groupId) return;
+  const u = currentUser();
+  const {data, error} = await db.rpc("group_member_list", {p_group_id: groupId});
+  if(error){ toast("Failed: " + error.message); return; }
+  const members = data || [];
+  const ginfo = await db.rpc("my_groups");
+  const g = (ginfo.data || []).find(function(x){ return x.group_id === groupId; });
+  const isAdmin = g && g.is_admin;
+  const ov = document.createElement("div");
+  ov.id = "grpMemOv";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px";
+  ov.innerHTML = '<div class="card" style="max-width:440px;width:100%;max-height:80vh;overflow-y:auto">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>👥 ' + esc(groupName) + '</h3>' +
+    '<button class="btn ghost" onclick="document.getElementById(\'grpMemOv\').remove()">✕</button></div>' +
+    members.map(function(m){
+      return '<div class="conv"><div class="avatar">' + esc((m.user_name || "U").charAt(0).toUpperCase()) + '</div>' +
+        '<div class="conv-main"><div class="conv-top"><b>@' + esc(m.user_name || "User") + '</b>' +
+        (m.is_admin ? '<span class="badge">admin</span>' : m.status === "pending" ? '<span class="badge pending">invited</span>' : '') + '</div></div>' +
+        (isAdmin && !m.is_admin && m.user_uid !== u.uid ? '<button class="btn small danger" onclick="removeMember(' + groupId + ',\'' + m.user_uid + '\')">Remove</button>' : '') +
+        '</div>';
+    }).join("") +
+    '<button class="btn ghost" onclick="leaveGroup()" style="width:100%;margin-top:12px">Leave group</button></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
+}
+async function removeMember(gid, uid){
+  if(!confirm("Is member ko group se remove kar dein?")) return;
+  const {error} = await db.rpc("remove_group_member", {p_group_id: gid, p_uid: uid});
+  if(error){ toast("Failed: " + error.message); return; }
+  document.getElementById("grpMemOv").remove();
+  showGroupMembers(); reloadGroupThread();
+}
+async function leaveGroup(){
+  if(!confirm("Group leave kar dein?")) return;
+  const u = currentUser();
+  const {error} = await db.rpc("remove_group_member", {p_group_id: groupId, p_uid: u.uid});
+  if(error){ toast("Failed: " + error.message); return; }
+  const ov = document.getElementById("grpMemOv"); if(ov) ov.remove();
+  closeGroupThread();
+  toast("Group leave kar diya");
 }
 
 /* ================= SELL ================= */
@@ -1410,6 +1829,7 @@ async function sellPdfForm(){
     '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
     '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" ' + dis + '></div>' +
     '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*" ' + dis + '></div>' +
+    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> 🔒 Private note — browse me nahi dikhega, sirf chat me share karunga</label></div>' +
     '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
 }
 async function sellImgForm(){
@@ -1430,6 +1850,7 @@ async function sellImgForm(){
     '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
     '<div class="field"><label>Attach note photos (1–50) *</label><input id="s_imgs" type="file" accept="image/*" multiple ' + dis + ' onchange="updImgPrice()"></div>' +
     '<div id="img_price_box"></div>' +
+    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> 🔒 Private note — browse me nahi dikhega, sirf chat me share karunga</label></div>' +
     '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
   updImgPrice();
 }
@@ -1472,6 +1893,7 @@ async function submitImgNote(ev){
     for(let w = 0; w < Math.min(4, files.length); w++) workers.push(upWorker());
     await Promise.all(workers);
     msg.innerHTML = "Saving…";
+    const isPriv2 = document.getElementById("s_private") && document.getElementById("s_private").checked;
     const {error} = await db.from("notes").insert({
       note_id: Math.floor(Date.now() / 1000),
       seller_id: u.uid, seller_name: u.name,
@@ -1482,10 +1904,12 @@ async function submitImgNote(ev){
       price: price, note_type: "images",
       ai_summary: document.getElementById("s_desc").value.trim(),
       file_url: "", image_urls: JSON.stringify(urls),
-      status: "pending", created_at: Date.now()
+      status: isPriv2 ? "approved" : "pending", visibility: isPriv2 ? "private" : "public", created_at: Date.now()
     });
     if(error) throw error;
-    msg.innerHTML = '<div class="notice ok">Submitted! ' + files.length + ' photos · <b>Rs ' + price + '</b>. The admin will verify then publish.</div>';
+    msg.innerHTML = isPriv2
+      ? '<div class="notice ok">🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.</div>'
+      : '<div class="notice ok">Submitted! ' + files.length + ' photos · <b>Rs ' + price + '</b>. The admin will verify then publish.</div>';
     ev.target.reset(); updImgPrice();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
 }
@@ -1506,6 +1930,7 @@ async function submitNote(ev){
     let coverUrl = "";
     if(coverInput.files.length){ msg.innerHTML = "Uploading cover…"; coverUrl = await uploadToStorage(await compressImage(coverInput.files[0]), "covers"); }
     msg.innerHTML = "Saving…";
+    const isPriv = document.getElementById("s_private") && document.getElementById("s_private").checked;
     const {error} = await db.from("notes").insert({
       note_id: Math.floor(Date.now()/1000),
       seller_id: u.uid, seller_name: u.name,
@@ -1517,10 +1942,12 @@ async function submitNote(ev){
       note_type: "pdf",
       ai_summary: document.getElementById("s_desc").value.trim(),
       file_url: fileUrl, image_urls: coverUrl,
-      status: "pending", created_at: Date.now()
+      status: isPriv ? "approved" : "pending", visibility: isPriv ? "private" : "public", created_at: Date.now()
     });
     if(error) throw error;
-    msg.innerHTML = '<div class="notice ok">Submitted! The admin will <b>open and verify your file</b>, then publish it.</div>';
+    msg.innerHTML = isPriv
+      ? '<div class="notice ok">🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.</div>'
+      : '<div class="notice ok">Submitted! The admin will <b>open and verify your file</b>, then publish it.</div>';
     ev.target.reset();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
@@ -2192,6 +2619,7 @@ async function pushNotif(title, body, link){
 function notifGo(link){
   if(!link) return;
   if(link.indexOf("detail:") === 0){ go("detail", Number(link.slice(7))); }
+  else if(link.indexOf("groupinvite:") === 0){ go("chat", {tab:"groups"}); }
   else if(link === "wallet"){ go("wallet"); }
   else if(link === "dashboard"){ go("dashboard"); }
 }
@@ -2284,11 +2712,20 @@ VIEWS.dashboard = async function(){
         ? '<div style="display:flex;flex-direction:column;gap:10px">' + notes.map(function(n){
             return '<div class="card" style="cursor:pointer;flex-direction:row;gap:14px;align-items:center" onclick="go(\'detail\','+n.note_id+')">' +
               '<div style="flex:1"><div style="font-weight:800">'+esc(n.title||"Untitled")+'</div>' +
-              '<div style="font-size:13px;color:var(--muted);margin-top:4px">👁 '+(Number(n.views)||0)+' views · ⬇ '+(Number(n.downloads)||0)+' downloads · '+priceStr(n.price)+' · <span class="badge '+(n.status==="approved"?"":n.status==="pending"?"pending":"rejected")+'">'+esc(n.status||"")+'</span></div></div></div>';
+              '<div style="font-size:13px;color:var(--muted);margin-top:4px">👁 '+(Number(n.views)||0)+' views · ⬇ '+(Number(n.downloads)||0)+' downloads · '+priceStr(n.price)+' · <span class="badge '+(n.status==="approved"?"":n.status==="pending"?"pending":"rejected")+'">'+esc(n.status||"")+'</span>'+(n.visibility==="private"?' <span class="badge pending">🔒 private</span>':'')+'</div>' +
+              (n.visibility==="private"?'<div style="margin-top:8px"><button class="btn small" onclick="event.stopPropagation();publishMyNote('+n.note_id+')">📢 Make public</button></div>':'') +
+              '</div></div>';
           }).join("") + '</div>'
         : '<div class="empty">'+T("Abhi koi note upload nahi kiya — <b>Sell</b> par jao aur pehla note lagao! 🚀")+'</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 };
+async function publishMyNote(note_id){
+  if(!confirm("Is note ko public kar dein? Admin approve karega phir browse me dikhega.")) return;
+  const {error} = await db.rpc("publish_note", {p_note_id: note_id});
+  if(error){ toast("Failed: " + error.message); return; }
+  toast("📢 Public ke liye bhej diya — admin approval ke baad browse me aayega");
+  VIEWS.dashboard();
+}
 async function trackView(note_id){
   try{ await db.functions.invoke("track-view", {body: {note_id: note_id}}); }catch(e){}
 }
