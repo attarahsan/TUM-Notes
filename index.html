@@ -420,6 +420,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const PAYMENT_METHOD = "Easypaisa";
 const PAYMENT_NUMBER = "03374667402";
 const PAYMENT_TITLE = "Ahsan Abid";
+const CASHMAAL_ENABLED = false; // CashMaal live hote hi true kar dein — deposit section ka notice isi se control hota hye
 const MIN_WITHDRAWAL = 300;
 const ADMIN_COMMISSION = 0.30;
 const COMMISSION_RATES = {free: 0.30, pro: 0.23, business: 0.15}; // admin ka cut — baqi seller ka
@@ -780,7 +781,7 @@ function updateUserBox(){
 async function refreshWallet(){
   const u = currentUser(); if(!u) return;
   try{
-    const {data} = await db.from("users").select("wallet,total_earnings,plan,note_limit,plan_expires,withdraw_pass_hash,referral_code").eq("uid", u.uid).limit(1);
+    const {data} = await db.from("users").select("wallet,total_earnings,deposit_balance,plan,note_limit,plan_expires,withdraw_pass_hash,referral_code").eq("uid", u.uid).limit(1);
     if(data && data.length){
       const r = data[0];
       if(r.plan && r.plan !== "free"){
@@ -795,13 +796,13 @@ async function refreshWallet(){
           }
         }catch(e){ /* function purana ho to purani value rehne do */ }
       }
-      u.wallet = r.wallet; u.total_earnings = r.total_earnings;
+      u.wallet = r.wallet; u.total_earnings = r.total_earnings; u.deposit_balance = Number(r.deposit_balance||0);
       u.plan = r.plan || "free"; u.note_limit = r.note_limit || 25; u.plan_expires = r.plan_expires || 0;
       u.withdraw_pass_hash = r.withdraw_pass_hash || null;
       u.referral_code = r.referral_code || null;
       localStorage.setItem("tum_user", JSON.stringify(u));
       const wb = document.getElementById("walletBtn");
-      if(wb) wb.textContent = "Wallet · Rs " + Number(u.wallet||0).toLocaleString();
+      if(wb) wb.textContent = "Wallet · Rs " + (Number(u.wallet||0)+Number(u.deposit_balance||0)).toLocaleString();
     }
   }catch(e){}
 }
@@ -1189,9 +1190,16 @@ function showUnlockForm(){
     previewHtml = '<div class="section-title" style="font-size:17px">'+T("👀 Preview — pehle pages")+'</div><div id="buyPdfPreview"></div>' +
       '<div class="notice" style="margin-top:8px">'+T("🔒 Preview pages par aapke naam ka watermark hye. Poori file unlock ke baad milegi.")+'</div>';
   }
+  const depBal = Number(u.deposit_balance||0), price = Number(n.price)||0;
+  const instantBox = price > 0 && depBal >= price
+    ? '<div class="fcard" style="border:2px solid var(--brand);margin-bottom:16px"><h2>⚡ '+T("Instant buy with deposit balance")+'</h2>' +
+      '<div class="sub">'+T("Available")+': <b>Rs '+depBal.toLocaleString()+'</b> · '+T("Price")+': <b>Rs '+price.toLocaleString()+'</b></div>' +
+      '<button class="btn" style="width:100%" onclick="buyWithBalance()">'+T("Buy now — Rs ")+price.toLocaleString()+'</button><div id="u_msg2" style="margin-top:10px"></div></div>'
+    : (price > 0 ? '<div class="notice warn" style="margin-bottom:16px">⚡ '+T("Deposit balance kam hai — pehle deposit karein.")+' <a href="javascript:go(\'wallet\')">'+T("Wallet par jayein")+'</a></div>' : '');
   document.getElementById("unlockArea").innerHTML =
     '<div class="notice">Paying as <b>'+esc(u.name)+'</b> ('+esc(u.email||"")+')</div>' +
     previewHtml +
+    instantBox +
     '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')<br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
     '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
     '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>';
@@ -1218,6 +1226,24 @@ async function submitOrder(){
       '<div class="notice ok">✅ Screenshot received! The admin will verify your payment. Once approved, come back and tap <b>"I already paid"</b> to open your note.</div>' +
       '<button class="btn ghost" onclick="showCheckAccess()">I already paid — open my note</button>';
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
+}
+async function buyWithBalance(){
+  const u = currentUser(); if(!u) return;
+  const n = currentNote;
+  const price = Number(n.price)||0;
+  if(!confirm(T("Rs ")+price.toLocaleString()+T(" deposit balance se khareedna hai? Ye foran unlock ho jayega."))) return;
+  const msg = document.getElementById("u_msg2");
+  if(msg) msg.innerHTML = "Processing…";
+  try{
+    const {data, error} = await db.functions.invoke("buy-with-balance", {body: {note_id: n.note_id}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    toast("✅ "+T("Note unlock ho gaya!"));
+    checkAccess();
+  }catch(e){
+    if(msg) msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>';
+    else alert(e.message);
+  }
 }
 function showCheckAccess(){
   const u = requireLogin(); if(!u) return;
@@ -2097,11 +2123,14 @@ VIEWS.wallet = async function(){
   const me = currentUser();
   if(me.is_admin) return adminWalletView(me);
   const {data: wds} = await db.from("withdrawals").select("*").eq("seller_id", me.uid).order("timestamp",{ascending:false}).limit(20);
+  const {data: deps} = await db.from("deposits").select("*").eq("user_id", me.uid).order("created_at",{ascending:false}).limit(20);
+  const fdt = function(v){ if(!v) return "—"; var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) + ", " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); };
   const hasWp = !!me.withdraw_pass_hash;
   app.innerHTML =
     '<div class="section-title" style="margin-top:4px">My wallet</div>' +
     '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:24px">' +
-      '<div class="statcard"><div class="lbl">Available balance</div><div class="val" style="color:var(--brand)">Rs '+Number(me.wallet||0).toLocaleString()+'</div></div>' +
+      '<div class="statcard"><div class="lbl">💰 Deposit balance</div><div class="val" style="color:var(--brand)">Rs '+Number(me.deposit_balance||0).toLocaleString()+'</div><div style="font-size:12.5px;color:var(--muted)">'+T("Notes khareedne ke liye")+'</div></div>' +
+      '<div class="statcard"><div class="lbl">💵 Earnings balance</div><div class="val" style="color:var(--green)">Rs '+Number(me.wallet||0).toLocaleString()+'</div><div style="font-size:12.5px;color:var(--muted)">'+T("Sirf withdraw ke liye")+'</div></div>' +
       '<div class="statcard"><div class="lbl">Total earned</div><div class="val" style="color:var(--green)">Rs '+Number(me.total_earnings||0).toLocaleString()+'</div></div>' +
     '</div>' +
     '<div class="notice">When your note sells, <b>'+myCommission().earnPct+'% goes to your wallet</b> and '+Math.round(myCommission().rate*100)+'% is the platform commission'+(myCommission().plan!=="free"?" ("+planName(myCommission().plan)+" plan)":"")+"</div>" +
@@ -2113,9 +2142,18 @@ VIEWS.wallet = async function(){
         '<button class="btn" onclick="copyReferral()">📋 Copy referral link</button>' +
         '<div id="refStats" style="margin-top:8px"><div class="loading">'+T("Team stats load ho rahi hain…")+'</div></div>'
       : '<div class="notice warn">'+T("Referral code abhi tayyar nahi — page reload karein.")+'</div>') + '</div>' +
+    '<div class="fcard" style="margin-bottom:24px;border:2px solid var(--brand)"><h2>💰 '+T("Deposit")+'</h2>' +
+    '<div class="sub">'+T("CashMaal se deposit karein — ye balance <b>sirf notes khareedne</b> ke liye istemal hoga.")+'</div><div id="d_msg"></div>' +
+    (CASHMAAL_ENABLED ? '' : '<div class="notice warn">'+T("CashMaal jald aa raha hai — deposit request abhi se bana sakte hain.")+'</div>') +
+    '<div class="frow2"><div class="field"><label>'+T("Amount (Rs) *")+'</label><input id="d_amount" type="number" min="50" placeholder="e.g. 500"></div></div>' +
+    '<button class="btn" style="width:100%" onclick="startDeposit()">'+T("Deposit via CashMaal")+'</button></div>' +
+    '<div class="section-title" style="font-size:18px">'+T("Deposit history")+'</div>' +
+    ((deps && deps.length) ? '<div style="overflow-x:auto;margin-bottom:24px"><table class="admin"><tr><th>'+T("Amount")+'</th><th>'+T("Date")+'</th><th>'+T("Status")+'</th></tr>' +
+      deps.map(function(d){ return '<tr><td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td><td style="white-space:nowrap">'+fdt(d.created_at)+'</td><td><span class="badge '+(d.status==="pending"?"pending":d.status==="failed"?"rejected":"")+'">'+esc(d.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
+      : '<div class="empty" style="margin-bottom:24px">'+T("Koi deposit nahi hui abhi.")+'</div>') +
     (hasWp ?
       '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
-      '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+''+T(". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b>")+'</div><div id="w_msg"></div>' +
+      '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+''+T(". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b> <b>Earnings balance</b> se withdraw hoga (deposit balance se nahi).")+'</div><div id="w_msg"></div>' +
       '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
       '<div class="field"><label>Withdraw method *</label><select id="w_method" required>' + WITHDRAW_METHODS.map(function(m){ return '<option'+(m===(me.withdraw_method||"Easypaisa")?' selected':"")+'>'+m+'</option>'; }).join("") + '</select></div></div>' +
       '<div class="frow2"><div class="field"><label>Account title (naam) *</label><input id="w_title" required placeholder="e.g. Ahsan Abid" value="'+esc(me.account_title||"")+'"></div>' +
@@ -2183,6 +2221,23 @@ async function submitWithdraw(ev){
     localStorage.setItem("tum_user", JSON.stringify(me));
     await refreshWallet();
     msg.innerHTML = '<div class="notice ok">Withdrawal requested! Rs '+amount.toLocaleString()+' will be sent via '+esc(method)+' ('+esc(acct)+') after admin approval.</div>';
+    setTimeout(function(){ VIEWS.wallet(); }, 1400);
+  }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+}
+async function startDeposit(){
+  const me = currentUser(); if(!me) return;
+  const amtEl = document.getElementById("d_amount");
+  const msg = document.getElementById("d_msg");
+  const amount = Math.floor(Number(amtEl.value));
+  if(!amount || amount < 50){ msg.innerHTML = '<div class="notice warn">'+T("Kam az kam Rs 50 deposit karein.")+'</div>'; return; }
+  msg.innerHTML = "Processing…";
+  try{
+    const {data, error} = await db.functions.invoke("create-deposit", {body: {amount: amount}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    if(data && data.payment_url){ location.href = data.payment_url; return; }
+    msg.innerHTML = '<div class="notice ok">'+T("Deposit request #")+(data.deposit_id||"")+" "+T("ban gayi — CashMaal connect hote hi payment hogi.")+'</div>';
+    amtEl.value = "";
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
   }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 }
@@ -2255,7 +2310,7 @@ VIEWS.admin = function(){
 };
 function adminTabs(active){
   const t = function(k, label){ return '<button class="'+(active===k?"active":"")+'" onclick="adminDash(currentUser(),\''+k+'\')">'+label+'</button>'; };
-  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("subs","💎 Plans") + t("activity","📊 Activity") + t("chat","💬 Chat") + t("security","🔐 Security") + '</div>';
+  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("deposits","💳 Deposits") + t("subs","💎 Plans") + t("activity","📊 Activity") + t("chat","💬 Chat") + t("security","🔐 Security") + '</div>';
 }
 function adminHead(s, note){
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
@@ -2267,6 +2322,7 @@ async function adminDash(s, tab){
   app.innerHTML = '<div class="loading">Loading admin panel…</div>';
   if(tab === "orders") return adminOrdersView(s);
   if(tab === "withdrawals") return adminWithdrawalsView(s);
+  if(tab === "deposits") return adminDepositsView(s);
   if(tab === "subs") return adminSubsView(s);
   if(tab === "activity") return adminActivityView(s);
   if(tab === "chat") return adminChatView(s);
@@ -2304,8 +2360,11 @@ async function adminDash(s, tab){
 }
 async function adminSetStatus(note_id, status, tab){
   if(!confirm("Set this note to '"+status+"'?")) return;
-  const {error} = await db.from("notes").update({status: status}).eq("note_id", note_id);
-  if(error){ alert("Failed: " + error.message); return; }
+  try{
+    const {data, error} = await db.functions.invoke("decide-note", {body: {note_id: note_id, action: status === "approved" ? "approve" : "reject"}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+  }catch(e){ alert("Failed: " + (e.message || e)); return; }
   toast(status === "approved" ? "✅ Note published" : "Note rejected");
   adminDash(currentUser(), tab);
 }
@@ -2314,33 +2373,12 @@ async function adminDismissReport(note_id, tab){
   adminDash(currentUser(), tab);
 }
 async function adminDeleteNote(note_id, tab, wasPending){
-  try{
-    const {data: sold} = await db.from("orders").select("order_id").eq("note_id", note_id).eq("status","approved").limit(1);
-    if(sold && sold.length){
-      alert(T("❌ Ye note pehle hi becha ja chuka hai — delete nahi ho sakta (buyers ka record kharab ho jayega). Sirf Reject karo taake listing se hat jaye."));
-      return;
-    }
-  }catch(e){}
   if(!confirm((wasPending ? "Reject karke " : "") + T("Is note ko PERMANENTLY delete karna hai? Ye wapas nahi aayega."))) return;
   try{
-    const {data: n} = await db.from("notes").select("file_url,image_urls").eq("note_id", note_id).single();
-    const toPath = function(u){
-      try{ var m = String(u||"").split("/storage/v1/object/public/notes/"); return m.length > 1 ? decodeURIComponent(m[1].split("?")[0]) : null; }
-      catch(e){ return null; }
-    };
-    const paths = [];
-    if(n){
-      const p1 = toPath(n.file_url); if(p1) paths.push(p1);
-      try{
-        const arr = JSON.parse(n.image_urls || "[]");
-        (Array.isArray(arr) ? arr : [n.image_urls]).forEach(function(u){ const q = toPath(u); if(q) paths.push(q); });
-      }catch(e){ const q2 = toPath(n.image_urls); if(q2) paths.push(q2); }
-    }
-    if(paths.length) await db.storage.from("notes").remove(paths);
-  }catch(e){}
-  try{ await db.from("orders").delete().eq("note_id", note_id).neq("status","approved"); }catch(e){}
-  const {error} = await db.from("notes").delete().eq("note_id", note_id);
-  if(error){ alert("Failed: " + error.message); return; }
+    const {data, error} = await db.functions.invoke("delete-note", {body: {note_id: note_id}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+  }catch(e){ alert("Failed: " + (e.message || e)); return; }
   toast("🗑️ Note deleted");
   adminDash(currentUser(), tab);
 }
@@ -2516,6 +2554,30 @@ async function adminWithdrawSet(request_id, seller_id, amount, status){
     }
     adminDash(currentUser(), "withdrawals");
   }catch(e){ alert("Failed: " + e.message); }
+}
+async function adminDepositsView(s){
+  app.innerHTML = '<div class="loading">Loading deposits…</div>';
+  try{
+    const {data: deps, error} = await db.from("deposits").select("*").order("created_at",{ascending:false}).limit(100);
+    if(error) throw error;
+    const uids = [...new Set((deps||[]).map(function(d){ return d.user_id; }).filter(Boolean))];
+    const umap = {};
+    if(uids.length){
+      const {data: us} = await db.from("users").select("uid,name,email").in("uid", uids);
+      (us||[]).forEach(function(x){ umap[x.uid] = x; });
+    }
+    const fdt = function(v){ if(!v) return "—"; var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) + ", " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); };
+    const rows = (deps||[]).map(function(d){
+      const x = umap[d.user_id] || {};
+      return '<tr><td><b>'+esc(x.name||"—")+'</b><br><span style="font-size:12.5px;color:var(--muted)">'+esc(x.email||"")+'</span></td>' +
+        '<td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td>' +
+        '<td><span class="badge '+(d.status==="pending"?"pending":d.status==="failed"?"rejected":"")+'">'+esc(d.status||"")+'</span></td>' +
+        '<td style="font-size:12.5px;color:var(--muted)">'+esc(d.cashmaal_txn_id||"—")+'</td>' +
+        '<td style="white-space:nowrap">'+fdt(d.created_at)+'</td></tr>';
+    }).join("");
+    app.innerHTML = adminHead(s, T("CashMaal deposits — saare users ki deposit history yahan.")) + adminTabs("deposits") +
+      (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>'+T("User")+'</th><th>'+T("Amount")+'</th><th>'+T("Status")+'</th><th>'+T("CashMaal txn")+'</th><th>'+T("Date")+'</th></tr>'+rows+'</table></div>' : '<div class="empty">'+T("Koi deposit nahi hui abhi.")+'</div>');
+  }catch(e){ app.innerHTML = '<div class="err">Could not load deposits: '+esc(e.message)+'</div>'; }
 }
 /* ---- admin: group chat moderation (real names, can delete) ---- */
 async function adminChatView(s){
