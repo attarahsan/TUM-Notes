@@ -33,6 +33,27 @@
   --shadow:0 2px 12px rgba(0,0,0,.45); --shadow-lg:0 16px 40px rgba(212,175,55,.13);
   --radius:16px;
 }
+/* ---- light mode ---- */
+body.light{
+  --bg:#f6f3ea; --card:#ffffff; --ink:#1c1a14; --muted:#6f6a5e;
+  --brand:#a8842a; --brand-d:#8a6d1f; --brand-soft:rgba(168,132,42,.12);
+  --green:#0d9d6c; --green-soft:rgba(13,157,108,.1);
+  --red:#dc2626; --red-soft:rgba(220,38,38,.08);
+  --amber:#d97706; --amber-soft:rgba(217,119,6,.1);
+  --line:#e7e0cd;
+  --shadow:0 2px 12px rgba(60,50,20,.12); --shadow-lg:0 16px 40px rgba(168,132,42,.14);
+}
+body.light .topbar{background:#fffdf8f2;border-bottom-color:rgba(168,132,42,.4)}
+body.light #sidebar{background:#fffdf8;border-right-color:rgba(168,132,42,.35)}
+body.light .hero{background:linear-gradient(120deg,#fffdf6 0%,#f7ecd4 60%,#f3e2b8 100%);color:#3a2f14;border-color:rgba(168,132,42,.4)}
+body.light .hero h1{color:#8a6d1f}
+body.light .logo small{color:var(--muted)}
+body.light ::selection{background:rgba(168,132,42,.3);color:#3a2f14}
+body.light .chatmsg{background:#f1ece0}
+body.light .chatmsg.mine{background:linear-gradient(135deg,#f0d878,#d9b83c)}
+body.light .conv:hover{background:rgba(168,132,42,.1)}
+body.light .notecard{background:rgba(168,132,42,.08);border-color:rgba(168,132,42,.45)}
+body.light input,body.light textarea,body.light select{background:#fffdf8;color:var(--ink);border-color:var(--line)}
 ::selection{background:rgba(212,175,55,.35);color:#fff8e1}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:#0e0e14}
@@ -317,6 +338,7 @@ img{max-width:100%;height:auto}
   <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
   <div class="logo" onclick="go('home')">TUM Notes Hub<small>TIMES UNIVERSITY MULTAN</small></div>
   <span class="live-dot" id="liveDot" title="Realtime connection"><i></i>Live</span>
+  <button class="hamburger" id="themeBtnTop" onclick="toggleTheme()" title="Dark / Light mode" style="margin-left:auto;font-size:17px">🌙</button>
 </div>
 <aside id="sidebar">
   <div class="side-head">
@@ -336,7 +358,10 @@ img{max-width:100%;height:auto}
     <button data-nav="admin" id="adminBtn" onclick="go('admin')" style="display:none">🛠 Admin</button>
   </nav>
   <div class="side-foot">
-    <span class="langtoggle" title="Language / زبان"><button id="langUr" onclick="setLang('ur')">UR</button><button id="langEn" onclick="setLang('en')">EN</button></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="langtoggle" title="Language / زبان"><button id="langUr" onclick="setLang('ur')">UR</button><button id="langEn" onclick="setLang('en')">EN</button></span>
+      <button id="themeBtn" class="btn ghost small" onclick="toggleTheme()" title="Dark / Light mode">🌙 Dark</button>
+    </div>
     <span id="userBox" style="display:flex;gap:8px;align-items:center"></span>
   </div>
 </aside>
@@ -385,6 +410,61 @@ let APP_LANG = "ur"; // 'ur' = Roman Urdu (default), 'en' = English
 try{ APP_LANG = localStorage.getItem("tum_lang") || "ur"; }catch(e){ APP_LANG = "ur"; }
 if(APP_LANG !== "en") APP_LANG = "ur";
 const I18N_EN = {
+  "👥 Group": "👥 Group",
+  "💬 Private": "💬 Private",
+  "👥 Groups": "👥 Groups",
+  "✓ Approve": "✓ Approve",
+  "Decline": "Decline",
+  "Koi private chat nahi —": "No private chats —",
+  "Apna message likhein…": "Write your message…",
+  "Message likhein…": "Write a message…",
+  "Abhi koi message nahi — pehla message aap bhejein! 👋": "No messages yet — send the first one! 👋",
+  "Koi message nahi — pehla message bhejein! 👋": "No messages — send the first one! 👋",
+  "Apna username set karein": "Set your username",
+  "Username (3-20 characters: a-z, 0-9, _)": "Username (3-20 characters: a-z, 0-9, _)",
+  "Save & open chat": "Save & open chat",
+  "Ye username kisi ne le liya hye — koi aur try karein.": "This username is taken — try another one.",
+  "3-20 characters: sirf a-z, 0-9 aur _": "3-20 characters: only a-z, 0-9 and _",
+  "Recording… dobara dabayein to send ho jayega": "Recording… tap again to send",
+  "Recording bohat chhoti thi": "Recording was too short",
+  "Uploading voice…": "Uploading voice…",
+  "Apne notes me se chunein — 🔒 private notes sirf is chat me nazar aayenge.": "Choose from your notes — 🔒 private notes are only visible in this chat.",
+  "Koi note nahi — pehle Sell se upload karein.": "No notes — upload one from Sell first.",
+  "Note not available": "Note not available",
+  "📩 Group invites": "📩 Group invites",
+  "ne aapko add kiya hye": "added you",
+  "Group join ho gaya! 🎉": "Group joined! 🎉",
+  "Invite decline kar di": "Invite declined",
+  "Koi group nahi — <b>＋ New group</b> se banayein!": "No groups — create one with <b>＋ New group</b>!",
+  "＋ New group": "＋ New group",
+  "Group name *": "Group name *",
+  "Members (usernames, comma se alag)": "Members (usernames, separated by commas)",
+  "Har member ko notification jayegi — approve karne par hi wo add hoga.": "Each member gets a notification — they're added only after approving.",
+  "Create group": "Create group",
+  "Creating…": "Creating…",
+  "Group ban gaya! 🎉": "Group created! 🎉",
+  "Is member ko group se remove kar dein?": "Remove this member from the group?",
+  "Leave group": "Leave group",
+  "Group leave kar dein?": "Leave this group?",
+  "Group leave kar diya": "Left the group",
+  "Aap khud se chat nahi kar sakte": "You can't chat with yourself",
+  "Ye aapka apna note hye": "This is your own note",
+  "⚠️ Ghalat zaban use nahi kar sakte": "⚠️ Inappropriate language is not allowed",
+  "Thoda rukein… ⏳": "Please wait… ⏳",
+  "💬 Chat with seller": "💬 Chat with seller",
+  "🔒 Private note — browse me nahi dikhega, sirf chat me share karunga": "🔒 Private note — won't show in browse, I'll only share it via chat",
+  "🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.": "🔒 Private note saved! Now send it to someone from <b>Chat</b> — it won't show in browse.",
+  "Is note ko public kar dein? Admin approve karega phir browse me dikhega.": "Make this note public? It'll appear in browse after admin approval.",
+  "📢 Make public": "📢 Make public",
+  "📢 Public ke liye bhej diya — admin approval ke baad browse me aayega": "📢 Sent for public listing — it'll appear in browse after admin approval",
+  "📎 Note attached": "📎 Note attached",
+  "Loading note…": "Loading note…",
+  "members — tap for details": "members — tap for details",
+  "you are admin": "you are admin",
+  "Chata load nahi ho sakein: ": "Couldn't load chats: ",
+  "Messages load nahi ho sakein: ": "Couldn't load messages: ",
+  "Groups load nahi ho sakein: ": "Couldn't load groups: ",
+  "Voice recording is browser me supported nahi": "Voice recording isn't supported in this browser",
   "Aapka subscription expire ho gaya — wapas Free plan par": "Your subscription has expired — back to the Free plan",
   "Ye <b>admin account</b> hye. Login mukammal karne ke liye admin password dalein.": "This is an <b>admin account</b>. Enter the admin password to complete login.",
   "❌ Ghalat password — dobara try karein": "❌ Wrong password — please try again",
@@ -1014,7 +1094,7 @@ VIEWS.detail = async function(note_id){
       '<div style="display:flex;align-items:flex-start;gap:10px"><h1 style="flex:1">'+esc(n.title||"Untitled note")+'</h1>' +
       '<button data-wish="'+note_id+'" onclick="toggleWishlist('+note_id+',event)" title="Wishlist" style="background:#fff;border:1px solid var(--line);border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;color:'+(wished ? "#dc2626" : "#9aa0b8")+'">'+(wished ? "♥" : "♡")+'</button></div>' +
       '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+' · 👁 '+(Number(n.views)||0)+' views</div>' +
-      (n.seller_id ? '<div style="margin:10px 0"><button class="btn ghost" onclick="chatWithSeller(\''+n.seller_id+'\',\''+esc(n.seller_name||"Seller").replace(/'/g,"\\'")+'\')">\uD83D\uDCAC Chat with seller</button></div>' : '') +
+      (n.seller_id ? '<div style="margin:10px 0"><button class="btn ghost" onclick="chatWithSeller(\''+n.seller_id+'\',\''+esc(n.seller_name||"Seller").replace(/'/g,"\\'")+'\')">\uD83D\uDCAC '+T("\uD83D\uDCAC Chat with seller")+'</button></div>' : '') +
       '<div class="topline">'+priceStr(n.price)+starStr(n.rating)+
       '<span style="font-size:13.5px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
       (n.ai_summary ? '<div class="desc">'+esc(n.ai_summary)+'</div>' : '') +
@@ -1147,10 +1227,31 @@ async function checkAccess(){
 function chatWithSeller(sellerUid, sellerName){
   const u = currentUser();
   if(!u){ toast("Please login or create an account first"); go("login"); return; }
-  if(sellerUid === u.uid){ toast("Ye aapka apna note hye"); return; }
+  if(sellerUid === u.uid){ toast(T("Ye aapka apna note hye")); return; }
   go("chat", {with: sellerUid, name: sellerName || "Seller"});
 }
 
+/* ---- theme (dark / light) ---- */
+function applyTheme(){
+  let t = "dark";
+  try{ t = localStorage.getItem("tum_theme") || "dark"; }catch(e){}
+  if(t !== "light") t = "dark";
+  document.body.classList.toggle("light", t === "light");
+  const b = document.getElementById("themeBtn");
+  if(b) b.innerHTML = t === "light" ? "☀️ Light" : "🌙 Dark";
+  const b2 = document.getElementById("themeBtnTop");
+  if(b2) b2.textContent = t === "light" ? "☀️" : "🌙";
+}
+function toggleTheme(){
+  let t = "dark";
+  try{ t = localStorage.getItem("tum_theme") || "dark"; }catch(e){}
+  try{ localStorage.setItem("tum_theme", t === "light" ? "dark" : "light"); }catch(e){}
+  applyTheme();
+}
+try{
+  const _th = localStorage.getItem("tum_theme");
+  if(_th === "light") document.body.classList.add("light");
+}catch(e){}
 /* ================= CHAT v2: real names + WhatsApp-style private ================= */
 /* ================= CHAT v3: username, voice, note-share, groups ================= */
 let groupSub = null, groupId = null, groupName = "";
@@ -1176,11 +1277,11 @@ function renderUsernameSetup(){
   app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat</div>' +
     '<div class="card" style="max-width:440px;margin:30px auto;text-align:center;padding:30px 24px">' +
     '<div style="font-size:44px;margin-bottom:10px">\uD83D\uDC64</div>' +
-    '<h2 style="margin-bottom:8px">Apna username set karein</h2>' +
+    '<h2 style="margin-bottom:8px">'+T("Apna username set karein")+'</h2>' +
     '<div class="sub" style="margin-bottom:18px">Chat me aap <b>username</b> se nazar aayenge — Gmail wale naam se nahi. Yehi naam group invites ke liye bhi use hoga.</div>' +
-    '<form onsubmit="saveUsername(event)"><div class="field" style="text-align:left"><label>Username (3-20 characters: a-z, 0-9, _)</label>' +
+    '<form onsubmit="saveUsername(event)"><div class="field" style="text-align:left"><label>'+T("Username (3-20 characters: a-z, 0-9, _)")+'</label>' +
     '<input id="unInput" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="e.g. ahmed_notes" autocomplete="off"></div>' +
-    '<div id="unMsg"></div><button class="btn" type="submit" style="width:100%">Save & open chat</button></form></div>';
+    '<div id="unMsg"></div><button class="btn" type="submit" style="width:100%">'+T("Save & open chat")+'</button></form></div>';
   const inp = document.getElementById("unInput"); if(inp) inp.focus();
 }
 async function saveUsername(ev){
@@ -1191,8 +1292,8 @@ async function saveUsername(ev){
   msg.innerHTML = "Saving…";
   const {error} = await db.rpc("set_username", {p_username: v});
   if(error){
-    const m = /taken/i.test(error.message) ? "Ye username kisi ne le liya hye — koi aur try karein." :
-              /bad username/i.test(error.message) ? "3-20 characters: sirf a-z, 0-9 aur _" : error.message;
+    const m = /taken/i.test(error.message) ? T("Ye username kisi ne le liya hye — koi aur try karein.") :
+              /bad username/i.test(error.message) ? T("3-20 characters: sirf a-z, 0-9 aur _") : error.message;
     msg.innerHTML = '<div class="err">' + esc(m) + "</div>"; return;
   }
   const u = currentUser(); u.username = v; localStorage.setItem("tum_user", JSON.stringify(u));
@@ -1211,7 +1312,7 @@ function chatMsgHtml(m, me){
   const nm = esc(m.sender_name || "User");
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
     '<div class="who' + (mine ? "" : " clickable") + '"' + (mine ? "" : ' onclick="openPrivateChat(\'' + m.sender_id + '\',\'' + nm.replace(/'/g, "\\'") + '\')" title="Private chat"') + '>' + nm + (mine ? " (aap)" : "") + '</div>' +
-    '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
 }
 
 VIEWS.chat = async function(arg){
@@ -1222,13 +1323,13 @@ VIEWS.chat = async function(arg){
   if(!un){ renderUsernameSetup(); return; }
   const startTab = (arg && arg.tab) || ((arg && arg.with) ? "private" : "group");
   app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat <span style="font-size:13px;color:var(--muted);font-weight:600">@' + esc(un) + ' <a href="#" onclick="renderUsernameSetup();return false;" style="color:var(--brand);font-size:12px">edit</a></span></div>' +
-    '<div class="chattabs"><button id="tabGroup" onclick="showChatTab(\'group\')">\uD83D\uDC65 Group</button>' +
-    '<button id="tabPrivate" onclick="showChatTab(\'private\')">\uD83D\uDCAC Private <span id="pmBadge"></span></button>' +
-    '<button id="tabGroups" onclick="showChatTab(\'groups\')">\uD83D\uDC6A Groups <span id="grpBadge"></span></button></div>' +
+    '<div class="chattabs"><button id="tabGroup" onclick="showChatTab(\'group\')">'+T("\uD83D\uDC65 Group")+'</button>' +
+    '<button id="tabPrivate" onclick="showChatTab(\'private\')">'+T("\uD83D\uDCAC Private")+' <span id="pmBadge"></span></button>' +
+    '<button id="tabGroups" onclick="showChatTab(\'groups\')">'+T("\uD83D\uDC6A Groups")+' <span id="grpBadge"></span></button></div>' +
     '<div id="chatGroupPane">' +
       '<div class="sub" style="margin-bottom:12px">Yahan sab apne <b>username</b> se likhte hain. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.</div>' +
       '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
-      '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="Apna message likhein…" autocomplete="off">' +
+      '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="'+T("Apna message likhein…")+'" autocomplete="off">' +
       '<button type="button" class="btn ghost" id="voiceBtnGroup" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
       '<button class="btn" type="submit">Send</button></form>' +
       '<div class="sub" style="margin-top:8px">\u26A0\uFE0F Galat zaban wale messages auto-delete ho jate hain.</div>' +
@@ -1239,20 +1340,20 @@ VIEWS.chat = async function(arg){
         '<button class="back" onclick="closePmThread()">\u2190 Back</button>' +
         '<div class="pm-head"><div class="avatar" id="pmAvatar">?</div><div><b id="pmName"></b><div class="sub" style="margin:0">private chat</div></div></div>' +
         '<div id="pmBox" class="chatbox"><div class="loading">Loading…</div></div>' +
-        '<form class="chatform" onsubmit="sendPmMsg(event)"><input id="pmInp" maxlength="500" placeholder="Message likhein…" autocomplete="off">' +
+        '<form class="chatform" onsubmit="sendPmMsg(event)"><input id="pmInp" maxlength="500" placeholder="'+T("Message likhein…")+'" autocomplete="off">' +
         '<button type="button" class="btn ghost" onclick="openNotePicker(\'pm\')" title="Attach note">\uD83D\uDCCE</button>' +
         '<button type="button" class="btn ghost" id="voiceBtnPm" onclick="toggleVoiceRecording(\'pm\')" title="Voice message">\uD83C\uDFA4</button>' +
         '<button class="btn" type="submit">Send</button></form>' +
       '</div>' +
     '</div>' +
     '<div id="chatGroupsPane" style="display:none">' +
-      '<button class="btn" onclick="showNewGroupModal()" style="margin-bottom:12px">＋ New group</button>' +
+      '<button class="btn" onclick="showNewGroupModal()" style="margin-bottom:12px">'+T("＋ New group")+'</button>' +
       '<div id="groupList"><div class="loading">Loading groups…</div></div>' +
       '<div id="groupThread" style="display:none">' +
         '<button class="back" onclick="closeGroupThread()">\u2190 Back</button>' +
         '<div class="pm-head" style="cursor:pointer" onclick="showGroupMembers()"><div class="avatar" id="grpAvatar">👥</div><div><b id="grpName"></b><div class="sub" style="margin:0" id="grpSub">members</div></div></div>' +
         '<div id="grpBox" class="chatbox"><div class="loading">Loading…</div></div>' +
-        '<form class="chatform" onsubmit="sendGroupMsg(event)"><input id="grpInp" maxlength="500" placeholder="Message likhein…" autocomplete="off">' +
+        '<form class="chatform" onsubmit="sendGroupMsg(event)"><input id="grpInp" maxlength="500" placeholder="'+T("Message likhein…")+'" autocomplete="off">' +
         '<button type="button" class="btn ghost" onclick="openNotePicker(\'group\')" title="Attach note">\uD83D\uDCCE</button>' +
         '<button type="button" class="btn ghost" id="voiceBtnGrp" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
         '<button class="btn" type="submit">Send</button></form>' +
@@ -1283,12 +1384,12 @@ function showChatTab(which){
 async function loadGroupChat(u){
   const box = document.getElementById("chatBox"); if(!box) return;
   try{
-    const {data, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,created_at").order("created_at",{ascending:false}).limit(60);
+    const {data, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at").order("created_at",{ascending:false}).limit(60);
     if(error) throw error;
     const msgs = (data || []).reverse();
-    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u); }).join("") : '<div class="empty">Abhi koi message nahi — pehla message aap bhejein! \uD83D\uDC4B</div>';
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u); }).join("") : '<div class="empty">'+T("Abhi koi message nahi — pehla message aap bhejein! \uD83D\uDC4B")+'</div>';
     box.scrollTop = box.scrollHeight;
-  }catch(e){ box.innerHTML = '<div class="err">Chat load nahi ho saka: '+esc(e.message)+'</div>'; return; }
+  }catch(e){ box.innerHTML = '<div class="err">Chat load nahi ho saka: '+T("Chat load nahi ho saka: ")+esc(e.message)+'</div>'; return; }
   chatSub = db.channel("chat-room")
     .on("postgres_changes", {event:"INSERT", schema:"public", table:"chat_messages"}, function(p){
       if(currentView !== "chat") return;
@@ -1306,7 +1407,7 @@ async function sendChatMsg(ev){
   const inp = document.getElementById("chatInp");
   const t = (inp.value || "").trim();
   if(!t) return;
-  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  if(t.length > 500){ toast(T("Message 500 characters se zyada nahi ho sakta")); return; }
   const now = Date.now();
   if(now - lastChatSent < 3000){ toast("Thoda rukein — 3 second me 1 message \u23F3"); return; }
   lastChatSent = now; inp.value = "";
@@ -1333,7 +1434,7 @@ async function loadConversations(){
     const badge = document.getElementById("pmBadge");
     if(badge) badge.innerHTML = totalUnread ? '<span class="unread">' + totalUnread + '</span>' : '';
     if(!convs.length){
-      list.innerHTML = '<div class="empty">Koi private chat nahi — kisi note ke seller se <b>\uD83D\uDCAC Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.</div>';
+      list.innerHTML = '<div class="empty">'+T("Koi private chat nahi —")+' kisi note ke seller se <b>\uD83D\uDCAC Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.</div>';
       return;
     }
     list.innerHTML = convs.map(function(c){
@@ -1345,19 +1446,19 @@ async function loadConversations(){
         '<div class="conv-sub"><span>' + esc((c.last_text || "").slice(0, 60)) + '</span>' + (un ? '<span class="unread">' + un + '</span>' : '') + '</div></div></div>';
     }).join("");
   }catch(e){
-    list.innerHTML = '<div class="err">Chats load nahi ho sakein: ' + esc(e.message) + '</div>';
+    list.innerHTML = '<div class="err">Chats load nahi ho sakein: '+T("Chats load nahi ho sakein: ")+esc(e.message) + '</div>';
   }
 }
 
 function pmMsgHtml(m, me){
   const mine = m.sender_uid === me.uid;
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
-    '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + noteCardSlot(m.note_id) + '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
 }
 
 async function openPrivateChat(uid, name){
   const u = currentUser(); if(!u) return;
-  if(!uid || uid === u.uid){ toast("Aap khud se chat nahi kar sakte"); return; }
+  if(!uid || uid === u.uid){ toast(T("Aap khud se chat nahi kar sakte")); return; }
   pmPartnerUid = uid; pmPartnerName = name || "User";
   showChatTab("private");
   document.getElementById("convList").style.display = "none";
@@ -1373,16 +1474,16 @@ async function reloadPmThread(){
   const box = document.getElementById("pmBox"); if(!box) return;
   try{
     const {data, error} = await db.from("private_messages")
-      .select("id,sender_uid,sender_name,text,created_at")
+      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at")
       .or("and(sender_uid.eq." + u.uid + ",receiver_uid.eq." + uid + "),and(sender_uid.eq." + uid + ",receiver_uid.eq." + u.uid + ")")
       .order("created_at", {ascending:true}).limit(200);
     if(error) throw error;
     const msgs = data || [];
-    box.innerHTML = msgs.length ? msgs.map(function(m){ return pmMsgHtml(m, u); }).join("") : '<div class="empty">Koi message nahi — pehla message bhejein! \uD83D\uDC4B</div>';
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return pmMsgHtml(m, u); }).join("") : '<div class="empty">'+T("Koi message nahi — pehla message bhejein! \uD83D\uDC4B")+'</div>';
     box.scrollTop = box.scrollHeight;
     resolveNoteCards(box);
     db.rpc("mark_chat_read", {p_partner_uid: uid}).then(function(){ loadConversations(); }, function(){});
-  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: '+T("Messages load nahi ho sakein: ")+esc(e.message) + '</div>'; }
 }
 
 function closePmThread(){
@@ -1398,7 +1499,7 @@ async function sendPmMsg(ev){
   const inp = document.getElementById("pmInp");
   const t = (inp.value || "").trim();
   if(!t) return;
-  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  if(t.length > 500){ toast(T("Message 500 characters se zyada nahi ho sakta")); return; }
   const now = Date.now();
   if(now - lastPmSent < 2000){ toast("Thoda rukein… \u23F3"); return; }
   lastPmSent = now; inp.value = "";
@@ -1435,7 +1536,7 @@ function subscribePm(u){
 /* ================= CHAT v3: voice, note-share, groups ================= */
 async function toggleVoiceRecording(sendType){
   if(voiceRec && voiceRec.state !== "inactive"){ stopVoiceRecording(false); return; }
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast("Voice recording is browser me supported nahi"); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast(T("Voice recording is browser me supported nahi")); return; }
   try{
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     voiceChunks = []; voiceSecs = 0; voiceSendType = sendType;
@@ -1451,8 +1552,8 @@ async function toggleVoiceRecording(sendType){
       if(b) b.innerHTML = "🔴 " + voiceSecs + "s — tap to send";
       if(voiceSecs >= 60) stopVoiceRecording(false);
     }, 1000);
-    toast("Recording… dobara dabayein to send ho jayega");
-  }catch(e){ toast("Mic access nahi mila: " + e.message); }
+    toast(T("Recording… dobara dabayein to send ho jayega"));
+  }catch(e){ toast(T("Mic access nahi mila: ") + e.message); }
 }
 function voiceBtnFor(sendType){
   return document.getElementById(sendType === "group" ? "voiceBtnGroup" : sendType === "pm" ? "voiceBtnPm" : "voiceBtnGrp");
@@ -1472,8 +1573,8 @@ async function finishVoiceRecording(){
   const type = voiceSendType; voiceSendType = null;
   if(!rec) return;
   const blob = new Blob(voiceChunks, {type: rec.mimeType || "audio/webm"});
-  if(blob.size < 1000){ toast("Recording bohat chhoti thi"); return; }
-  toast("Uploading voice…");
+  if(blob.size < 1000){ toast(T("Recording bohat chhoti thi")); return; }
+  toast(T("Uploading voice…"));
   const url = await uploadVoice(blob);
   if(!url) return;
   try{
@@ -1500,12 +1601,12 @@ async function uploadVoice(blob){
     const {error} = await db.storage.from("chat-voice").upload(path, blob, {contentType: "audio/webm"});
     if(error) throw error;
     return db.storage.from("chat-voice").getPublicUrl(path).data.publicUrl;
-  }catch(e){ toast("Voice upload failed: " + e.message); return null; }
+  }catch(e){ toast(T("Voice upload failed: ") + e.message); return null; }
 }
 
 /* ---------- note attach / note cards ---------- */
 function noteCardSlot(noteId){
-  return noteId ? '<div class="notecard-slot" data-note="' + noteId + '"><div class="sub">Loading note…</div></div>' : "";
+  return noteId ? '<div class="notecard-slot" data-note="' + noteId + '"><div class="sub">'+T("Loading note…")+'</div></div>' : "";
 }
 async function resolveNoteCards(scopeEl){
   if(!scopeEl) return;
@@ -1521,7 +1622,7 @@ async function resolveNoteCards(scopeEl){
   }
   slots.forEach(function(s){
     const n = noteCache[s.dataset.note];
-    if(!n){ s.innerHTML = '<div class="sub">Note not available</div>'; return; }
+    if(!n){ s.innerHTML = '<div class="sub">'+T("Note not available")+'</div>'; return; }
     s.innerHTML = '<div class="notecard" onclick="go(\'detail\',' + n.note_id + ')">' +
       '<div style="font-size:24px">📝</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(n.title || "Untitled") + '</div>' +
       '<div class="sub" style="margin:2px 0 0">' + esc(n.subject || "") + ' · ' + priceStr(n.price) + '</div></div>' +
@@ -1544,7 +1645,7 @@ function openNotePicker(sendType){
     .then(function(r){
       const list = document.getElementById("npList"); if(!list) return;
       const notes = (r.data || []).filter(function(n){ return n.status === "approved"; });
-      if(!notes.length){ list.innerHTML = '<div class="empty">Koi note nahi — pehle Sell se upload karein.</div>'; return; }
+      if(!notes.length){ list.innerHTML = '<div class="empty">'+T("Koi note nahi — pehle Sell se upload karein.")+'</div>'; return; }
       list.innerHTML = notes.map(function(n){
         return '<div class="conv" onclick="attachNoteToChat(' + n.note_id + ',\'' + sendType + '\')">' +
           '<div style="font-size:24px">📝</div><div class="conv-main"><div class="conv-top"><b>' + esc(n.title || "Untitled") + '</b><span class="ts">' + priceStr(n.price) + '</span></div>' +
@@ -1566,7 +1667,7 @@ async function attachNoteToChat(noteId, sendType){
       if(error) throw error;
       reloadGroupThread();
     }
-    toast("📎 Note attached");
+    toast(T("📎 Note attached"));
   }catch(e){ toast("Failed: " + e.message); }
 }
 
@@ -1593,11 +1694,11 @@ async function loadMyGroups(){
     const mem = gs.filter(function(g){ return !g.pending_invite; });
     let html = "";
     if(inv.length){
-      html += '<div class="sub" style="margin-bottom:8px;font-weight:800">📩 Group invites</div>' + inv.map(function(g){
+      html += '<div class="sub" style="margin-bottom:8px;font-weight:800">'+T("📩 Group invites")+'</div>' + inv.map(function(g){
         return '<div class="card" style="margin-bottom:10px"><div style="font-weight:800">👥 ' + esc(g.group_name) + '</div>' +
-          '<div class="sub" style="margin:4px 0 10px">Admin: <b>' + esc(g.admin_name) + '</b> ne aapko add kiya hye</div>' +
-          '<div style="display:flex;gap:8px"><button class="btn" onclick="respondInvite(' + g.group_id + ',true)">✓ Approve</button>' +
-          '<button class="btn ghost" onclick="respondInvite(' + g.group_id + ',false)">Decline</button></div></div>';
+          '<div class="sub" style="margin:4px 0 10px">Admin: <b>' + esc(g.admin_name) + '</b> '+T("ne aapko add kiya hye")+'</div>' +
+          '<div style="display:flex;gap:8px"><button class="btn" onclick="respondInvite(' + g.group_id + ',true)">'+T("✓ Approve")+'</button>' +
+          '<button class="btn ghost" onclick="respondInvite(' + g.group_id + ',false)">'+T("Decline")+'</button></div></div>';
       }).join("");
     }
     html += mem.length ? mem.map(function(g){
@@ -1607,16 +1708,16 @@ async function loadMyGroups(){
         '<div class="conv-top"><b>' + esc(g.group_name) + '</b><span class="ts">' + (g.last_at ? fmtDateTime(g.last_at) : "") + '</span></div>' +
         '<div class="conv-sub"><span>' + esc((g.last_sender ? g.last_sender + ": " : "") + (g.last_text || "").slice(0, 50)) + '</span>' +
         (un2 ? '<span class="unread">' + un2 + '</span>' : '') + '</div>' +
-        '<div class="sub" style="margin:2px 0 0">' + g.member_count + ' members' + (g.is_admin ? ' · you are admin' : '') + '</div>' +
+        '<div class="sub" style="margin:2px 0 0">' + g.member_count + ' members' + (g.is_admin ? ' · '+T("you are admin") : '') + '</div>' +
         '</div></div>';
-    }).join("") : (inv.length ? "" : '<div class="empty">Koi group nahi — <b>＋ New group</b> se banayein!</div>');
+    }).join("") : (inv.length ? "" : '<div class="empty">'+T("Koi group nahi — <b>＋ New group</b> se banayein!")+'</div>');
     list.innerHTML = html;
-  }catch(e){ list.innerHTML = '<div class="err">Groups load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+  }catch(e){ list.innerHTML = '<div class="err">Groups load nahi ho sakein: '+T("Groups load nahi ho sakein: ")+esc(e.message) + '</div>'; }
 }
 async function respondInvite(gid, accept){
   const {error} = await db.rpc("respond_group_invite", {p_group_id: gid, p_accept: accept});
   if(error){ toast("Failed: " + error.message); return; }
-  toast(accept ? "Group join ho gaya! 🎉" : "Invite decline kar di");
+  toast(accept ? T("Group join ho gaya! 🎉") : T("Invite decline kar di"));
   loadMyGroups(); loadNotifCount();
 }
 async function openGroup(gid, name){
@@ -1654,9 +1755,9 @@ async function reloadGroupThread(){
     try{
       const mc = await db.rpc("group_member_list", {p_group_id: groupId});
       const sub = document.getElementById("grpSub");
-      if(sub && mc.data) sub.textContent = mc.data.filter(function(m){ return m.status === "member"; }).length + " members — tap for details";
+      if(sub && mc.data) sub.textContent = mc.data.filter(function(m){ return m.status === "member"; }).length + " " + T("members — tap for details");
     }catch(e){}
-  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: '+T("Messages load nahi ho sakein: ")+esc(e.message) + '</div>'; }
 }
 function subscribeGroup(){
   const u = currentUser(); if(!u || !groupId) return;
@@ -1681,10 +1782,10 @@ async function sendGroupMsg(ev){
   const inp = document.getElementById("grpInp");
   const t = (inp.value || "").trim();
   if(!t) return;
-  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  if(t.length > 500){ toast(T("Message 500 characters se zyada nahi ho sakta")); return; }
   const now = Date.now();
-  if(now - lastGrpSent < 2000){ toast("Thoda rukein… ⏳"); return; }
-  if(containsBadWords(t)){ toast("⚠️ Ghalat zaban use nahi kar sakte"); return; }
+  if(now - lastGrpSent < 2000){ toast(T("Thoda rukein… ⏳")); return; }
+  if(containsBadWords(t)){ toast(T("⚠️ Ghalat zaban use nahi kar sakte")); return; }
   lastGrpSent = now; inp.value = "";
   const {error} = await db.rpc("send_group_message", {p_group_id: groupId, p_text: t});
   if(error){ toast("Failed: " + (/inappropriate/i.test(error.message) ? "⚠️ Ghalat zaban use nahi kar sakte" : error.message)); lastGrpSent = 0; return; }
@@ -1698,10 +1799,10 @@ function showNewGroupModal(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>👥 New group</h3>' +
     '<button class="btn ghost" onclick="document.getElementById(\'newGroupOv\').remove()">✕</button></div>' +
     '<form onsubmit="createGroupSubmit(event)">' +
-    '<div class="field"><label>Group name *</label><input id="ngName" required maxlength="40" placeholder="e.g. Physics Notes Group"></div>' +
-    '<div class="field"><label>Members (usernames, comma se alag)</label><textarea id="ngUsers" rows="2" placeholder="e.g. ahmed_notes, sara_k"></textarea>' +
+    '<div class="field"><label>'+T("Group name *")+'</label><input id="ngName" required maxlength="40" placeholder="e.g. Physics Notes Group"></div>' +
+    '<div class="field"><label>'+T("Members (usernames, comma se alag)")+'</label><textarea id="ngUsers" rows="2" placeholder="e.g. ahmed_notes, sara_k"></textarea>' +
     '<div class="sub">Har member ko notification jayegi — approve karne par hi wo add hoga.</div></div>' +
-    '<div id="ngMsg"></div><button class="btn" type="submit" style="width:100%">Create group</button></form></div>';
+    '<div id="ngMsg"></div><button class="btn" type="submit" style="width:100%">'+T("Create group")+'</button></form></div>';
   document.body.appendChild(ov);
   ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
 }
@@ -1710,11 +1811,11 @@ async function createGroupSubmit(ev){
   const name = document.getElementById("ngName").value.trim();
   const users = document.getElementById("ngUsers").value.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
   const msg = document.getElementById("ngMsg");
-  msg.innerHTML = "Creating…";
+  msg.innerHTML = T("Creating…");
   const {data, error} = await db.rpc("create_group", {p_name: name, p_usernames: users});
   if(error){ msg.innerHTML = '<div class="err">Failed: ' + esc(error.message) + '</div>'; return; }
   document.getElementById("newGroupOv").remove();
-  toast("Group ban gaya! 🎉");
+  toast(T("Group ban gaya! 🎉"));
   loadMyGroups();
   if(data) openGroup(data, name);
 }
@@ -1740,25 +1841,25 @@ async function showGroupMembers(){
         (isAdmin && !m.is_admin && m.user_uid !== u.uid ? '<button class="btn small danger" onclick="removeMember(' + groupId + ',\'' + m.user_uid + '\')">Remove</button>' : '') +
         '</div>';
     }).join("") +
-    '<button class="btn ghost" onclick="leaveGroup()" style="width:100%;margin-top:12px">Leave group</button></div>';
+    '<button class="btn ghost" onclick="leaveGroup()" style="width:100%;margin-top:12px">'+T("Leave group")+'</button></div>';
   document.body.appendChild(ov);
   ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
 }
 async function removeMember(gid, uid){
-  if(!confirm("Is member ko group se remove kar dein?")) return;
+  if(!confirm(T("Is member ko group se remove kar dein?"))) return;
   const {error} = await db.rpc("remove_group_member", {p_group_id: gid, p_uid: uid});
   if(error){ toast("Failed: " + error.message); return; }
   document.getElementById("grpMemOv").remove();
   showGroupMembers(); reloadGroupThread();
 }
 async function leaveGroup(){
-  if(!confirm("Group leave kar dein?")) return;
+  if(!confirm(T("Group leave kar dein?"))) return;
   const u = currentUser();
   const {error} = await db.rpc("remove_group_member", {p_group_id: groupId, p_uid: u.uid});
   if(error){ toast("Failed: " + error.message); return; }
   const ov = document.getElementById("grpMemOv"); if(ov) ov.remove();
   closeGroupThread();
-  toast("Group leave kar diya");
+  toast(T("Group leave kar diya"));
 }
 
 /* ================= SELL ================= */
@@ -1829,7 +1930,7 @@ async function sellPdfForm(){
     '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
     '<div class="field"><label>Attach note file (PDF, DOC, PPT…) *</label><input id="s_file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" ' + dis + '></div>' +
     '<div class="field"><label>Cover picture (optional)</label><input id="s_cover" type="file" accept="image/*" ' + dis + '></div>' +
-    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> 🔒 Private note — browse me nahi dikhega, sirf chat me share karunga</label></div>' +
+    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> '+T("🔒 Private note — browse me nahi dikhega, sirf chat me share karunga")+'</label></div>' +
     '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
 }
 async function sellImgForm(){
@@ -1850,7 +1951,7 @@ async function sellImgForm(){
     '<div class="field"><label>Description</label><textarea id="s_desc" placeholder="What is covered in these notes?" ' + dis + '></textarea></div>' +
     '<div class="field"><label>Attach note photos (1–50) *</label><input id="s_imgs" type="file" accept="image/*" multiple ' + dis + ' onchange="updImgPrice()"></div>' +
     '<div id="img_price_box"></div>' +
-    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> 🔒 Private note — browse me nahi dikhega, sirf chat me share karunga</label></div>' +
+    '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">'+'<input type="checkbox" id="s_private" style="width:18px;height:18px"> '+T("🔒 Private note — browse me nahi dikhega, sirf chat me share karunga")+'</label></div>' +
     '<button class="btn" type="submit" style="width:100%" ' + dis + '>Submit for approval</button></form>';
   updImgPrice();
 }
@@ -1908,7 +2009,7 @@ async function submitImgNote(ev){
     });
     if(error) throw error;
     msg.innerHTML = isPriv2
-      ? '<div class="notice ok">🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.</div>'
+      ? '<div class="notice ok">'+T("🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.")+'</div>'
       : '<div class="notice ok">Submitted! ' + files.length + ' photos · <b>Rs ' + price + '</b>. The admin will verify then publish.</div>';
     ev.target.reset(); updImgPrice();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: ' + esc(e.message) + '</div>'; }
@@ -1946,7 +2047,7 @@ async function submitNote(ev){
     });
     if(error) throw error;
     msg.innerHTML = isPriv
-      ? '<div class="notice ok">🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.</div>'
+      ? '<div class="notice ok">'+T("🔒 Private note save ho gaya! Ab <b>Chat</b> me ja kar kisi ko bhej sakte hain — browse me nahi dikhega.")+'</div>'
       : '<div class="notice ok">Submitted! The admin will <b>open and verify your file</b>, then publish it.</div>';
     ev.target.reset();
   }catch(e){ msg.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
@@ -2383,7 +2484,7 @@ async function adminWithdrawSet(request_id, seller_id, amount, status){
 /* ---- admin: group chat moderation (real names, can delete) ---- */
 async function adminChatView(s){
   try{
-    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,created_at").order("created_at",{ascending:false}).limit(100);
+    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at").order("created_at",{ascending:false}).limit(100);
     if(error) throw error;
     app.innerHTML = adminHead(s, "Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.") +
       adminTabs("chat") +
@@ -2713,17 +2814,17 @@ VIEWS.dashboard = async function(){
             return '<div class="card" style="cursor:pointer;flex-direction:row;gap:14px;align-items:center" onclick="go(\'detail\','+n.note_id+')">' +
               '<div style="flex:1"><div style="font-weight:800">'+esc(n.title||"Untitled")+'</div>' +
               '<div style="font-size:13px;color:var(--muted);margin-top:4px">👁 '+(Number(n.views)||0)+' views · ⬇ '+(Number(n.downloads)||0)+' downloads · '+priceStr(n.price)+' · <span class="badge '+(n.status==="approved"?"":n.status==="pending"?"pending":"rejected")+'">'+esc(n.status||"")+'</span>'+(n.visibility==="private"?' <span class="badge pending">🔒 private</span>':'')+'</div>' +
-              (n.visibility==="private"?'<div style="margin-top:8px"><button class="btn small" onclick="event.stopPropagation();publishMyNote('+n.note_id+')">📢 Make public</button></div>':'') +
+              (n.visibility==="private"?'<div style="margin-top:8px"><button class="btn small" onclick="event.stopPropagation();publishMyNote('+n.note_id+')">'+T("📢 Make public")+'</button></div>':'') +
               '</div></div>';
           }).join("") + '</div>'
         : '<div class="empty">'+T("Abhi koi note upload nahi kiya — <b>Sell</b> par jao aur pehla note lagao! 🚀")+'</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load: '+esc(e.message)+'</div>'; }
 };
 async function publishMyNote(note_id){
-  if(!confirm("Is note ko public kar dein? Admin approve karega phir browse me dikhega.")) return;
+  if(!confirm(T("Is note ko public kar dein? Admin approve karega phir browse me dikhega."))) return;
   const {error} = await db.rpc("publish_note", {p_note_id: note_id});
   if(error){ toast("Failed: " + error.message); return; }
-  toast("📢 Public ke liye bhej diya — admin approval ke baad browse me aayega");
+  toast(T("📢 Public ke liye bhej diya — admin approval ke baad browse me aayega"));
   VIEWS.dashboard();
 }
 async function trackView(note_id){
@@ -2821,6 +2922,7 @@ function showInstallBanner(){
 (function(){ runSplash(); })();
 function hideSplash(){ const s = document.getElementById("splash"); if(!s || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(function(){ s.remove(); }, 700); }
 paintLangToggle();
+applyTheme();
 updateUserBox();
 subscribeWallet();
 initRealtime();
