@@ -40,14 +40,33 @@
 ::-webkit-scrollbar-thumb:hover{background:#d4af37}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;background:radial-gradient(1200px 520px at 50% -120px,rgba(212,175,55,.12),rgba(212,175,55,0) 60%),var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
-header.site{background:#0e0e14f2;backdrop-filter:blur(12px);border-bottom:1px solid rgba(212,175,55,.38);position:sticky;top:0;z-index:60}
-.nav{max-width:1140px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:13px 20px}
+/* ---- topbar + sidebar ---- */
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:14px;padding:11px 18px;background:#0e0e14f2;backdrop-filter:blur(12px);border-bottom:1px solid rgba(212,175,55,.38)}
+.topbar .logo{font-size:19px}
+.hamburger{background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.35);border-radius:10px;color:var(--ink);font-size:19px;width:42px;height:42px;cursor:pointer;flex:0 0 auto}
+.hamburger:hover{background:rgba(212,175,55,.18)}
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:284px;max-width:86vw;background:#101016;border-right:1px solid rgba(212,175,55,.3);z-index:100;display:flex;flex-direction:column;transform:translateX(-106%);transition:transform .28s ease;box-shadow:8px 0 30px rgba(0,0,0,.45)}
+#sidebar.open{transform:none}
+.side-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+.side-close{background:none;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:15px;width:34px;height:34px;cursor:pointer}
+.side-links{display:flex;flex-direction:column;gap:3px;padding:14px 12px;overflow-y:auto;flex:1}
+.side-links button{background:none;border:none;text-align:left;padding:12px 14px;border-radius:11px;font-size:15px;cursor:pointer;color:var(--ink);font-weight:600;font-family:inherit;display:flex;align-items:center;gap:10px}
+.side-links button:hover{background:var(--brand-soft)}
+.side-links button.active{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a}
+.side-foot{padding:14px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+#sideOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90;opacity:0;pointer-events:none;transition:opacity .28s}
+#sideOverlay.show{opacity:1;pointer-events:auto}
+@media(min-width:1024px){
+  #sidebar{transform:none}
+  #sideOverlay{display:none!important}
+  .hamburger{display:none}
+  .topbar{margin-left:284px}
+  main#app,footer.site{margin-left:284px}
+  main#app{max-width:calc(1140px + 284px)}
+}
 .logo{font-weight:900;font-size:21px;cursor:pointer;letter-spacing:-.4px;white-space:nowrap;background:linear-gradient(135deg,#f6dd8a 0%,#d4af37 48%,#9c7a1e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .logo small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:2.5px}
-.nav-links{display:flex;gap:4px;margin-left:auto;align-items:center;flex-wrap:wrap}
-.nav-links button{background:none;border:none;padding:9px 15px;border-radius:10px;font-size:14.5px;cursor:pointer;color:var(--ink);font-weight:600;font-family:inherit}
-.nav-links button:hover{background:var(--brand-soft)}
-.nav-links button.active{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a}
+/* nav-links removed: sidebar now */
 .langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-left:6px}
 .langtoggle button{padding:7px 10px!important;font-size:12.5px!important;border-radius:0!important;color:var(--muted)}
 .langtoggle button.on{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a}
@@ -225,6 +244,24 @@ img{max-width:100%;height:auto}
 .nocopy,.nocopy *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}
 .wm-wrap{position:relative}
 .wm-overlay{position:absolute;inset:0;pointer-events:none;z-index:6;background-repeat:repeat}
+/* group + private chat (WhatsApp style) */
+.chattabs{display:flex;gap:8px;margin-bottom:14px}
+.chattabs button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:14.5px;cursor:pointer;font-family:inherit}
+.chattabs button.active{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a;border-color:transparent}
+.conv{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;cursor:pointer;border:1px solid transparent}
+.conv:hover{background:var(--brand-soft)}
+.conv .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e9c85a,#9c7a1e);color:#1a150a;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.conv-main{flex:1;min-width:0}
+.conv-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.conv-top b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-top .ts{font-size:11.5px;color:var(--muted);flex:0 0 auto}
+.conv-sub{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:3px}
+.conv-sub span:first-child{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unread{background:#d4af37;color:#1a150a;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+.pm-head{display:flex;align-items:center;gap:12px;padding:10px 4px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.pm-head .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#e9c85a,#9c7a1e);color:#1a150a;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center}
+.pm-head b{font-size:16px}
+.chatmsg .who.clickable{cursor:pointer;text-decoration:underline}
 /* anonymous chat */
 .chatbox{border:1px solid var(--line);border-radius:14px;background:var(--card);height:52vh;min-height:300px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .chatmsg{max-width:85%;background:#1e1e29;border:1px solid var(--line);border-radius:12px;padding:8px 12px;align-self:flex-start}
@@ -271,26 +308,34 @@ img{max-width:100%;height:auto}
     <div class="sp-skip">tap anywhere to skip</div>
   </div>
 </div>
-<header class="site">
-  <div class="nav">
+<div class="topbar">
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <div class="logo" onclick="go('home')">TUM Notes Hub<small>TIMES UNIVERSITY MULTAN</small></div>
+  <span class="live-dot" id="liveDot" title="Realtime connection"><i></i>Live</span>
+</div>
+<aside id="sidebar">
+  <div class="side-head">
     <div class="logo" onclick="go('home')">TUM Notes Hub<small>TIMES UNIVERSITY MULTAN</small></div>
-    <div class="nav-links">
-      <span class="live-dot" id="liveDot" title="Realtime connection"><i></i>Live</span>
-      <button data-nav="home" onclick="go('home')">Home</button>
-      <button data-nav="browse" onclick="go('browse')">Browse</button>
-      <button data-nav="sell" onclick="go('sell')">Sell</button>
-      <button data-nav="chat" onclick="go('chat')">💬 Chat</button>
-      <button data-nav="plans" onclick="go('plans')">💎 Plans</button>
-      <button data-nav="wishlist" id="wishBtn" onclick="go('wishlist')" style="display:none">♥ Wishlist</button>
-      <button data-nav="dashboard" id="dashBtn" onclick="go('dashboard')" style="display:none">📊 Dashboard</button>
-      <button data-nav="notifications" id="notifBtn" onclick="go('notifications')" style="display:none;position:relative">🔔<span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;line-height:18px;text-align:center;padding:0 4px"></span></button>
-      <button data-nav="wallet" id="walletBtn" onclick="go('wallet')" style="display:none">Wallet</button>
-      <button data-nav="admin" id="adminBtn" onclick="go('admin')" style="display:none">Admin</button>
-      <span class="langtoggle" title="Language / زبان"><button id="langUr" onclick="setLang('ur')">UR</button><button id="langEn" onclick="setLang('en')">EN</button></span>
-      <span id="userBox" style="display:flex;gap:8px;align-items:center"></span>
-    </div>
+    <button class="side-close" onclick="toggleSidebar(true)" aria-label="Close">✕</button>
   </div>
-</header>
+  <nav class="side-links">
+    <button data-nav="home" onclick="go('home')">🏠 Home</button>
+    <button data-nav="browse" onclick="go('browse')">🔍 Browse</button>
+    <button data-nav="sell" onclick="go('sell')">📤 Sell</button>
+    <button data-nav="chat" onclick="go('chat')">💬 Chat</button>
+    <button data-nav="plans" onclick="go('plans')">💎 Plans</button>
+    <button data-nav="wishlist" id="wishBtn" onclick="go('wishlist')" style="display:none">♥ Wishlist</button>
+    <button data-nav="dashboard" id="dashBtn" onclick="go('dashboard')" style="display:none">📊 Dashboard</button>
+    <button data-nav="notifications" id="notifBtn" onclick="go('notifications')" style="display:none">🔔 Notifications<span id="notifBadge" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;line-height:18px;text-align:center;padding:0 4px;margin-left:8px"></span></button>
+    <button data-nav="wallet" id="walletBtn" onclick="go('wallet')" style="display:none">👛 Wallet</button>
+    <button data-nav="admin" id="adminBtn" onclick="go('admin')" style="display:none">🛠 Admin</button>
+  </nav>
+  <div class="side-foot">
+    <span class="langtoggle" title="Language / زبان"><button id="langUr" onclick="setLang('ur')">UR</button><button id="langEn" onclick="setLang('en')">EN</button></span>
+    <span id="userBox" style="display:flex;gap:8px;align-items:center"></span>
+  </div>
+</aside>
+<div id="sideOverlay" onclick="toggleSidebar(true)"></div>
 <main id="app"><div class="loading">Loading…</div></main>
 <div id="toasts"></div>
 <footer class="site"><div class="in">
@@ -569,7 +614,14 @@ document.addEventListener("copy", function(e){
 })();
 function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(), 4500); }
 function setNav(n){ document.querySelectorAll("[data-nav]").forEach(b => b.classList.toggle("active", b.dataset.nav === n)); }
-function go(view, arg){ setNav(view); if(view !== "chat" && typeof chatSub !== "undefined" && chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; } currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
+function toggleSidebar(forceClose){
+  const sb = document.getElementById("sidebar"), ov = document.getElementById("sideOverlay");
+  if(!sb) return;
+  const open = forceClose === true ? false : !sb.classList.contains("open");
+  sb.classList.toggle("open", open);
+  if(ov) ov.classList.toggle("show", open && window.innerWidth < 1024);
+}
+function go(view, arg){ setNav(view); if(window.innerWidth < 1024) toggleSidebar(true); if(view !== "chat" && typeof chatSub !== "undefined" && chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; } currentView = view; currentArg = arg; updateUserBox(); refreshWallet(); VIEWS[view](arg); window.scrollTo(0,0); }
 let currentView = "home", currentArg = null, currentNote = null;
 
 /* ================= AUTH ================= */
@@ -954,6 +1006,7 @@ VIEWS.detail = async function(note_id){
       '<div style="display:flex;align-items:flex-start;gap:10px"><h1 style="flex:1">'+esc(n.title||"Untitled note")+'</h1>' +
       '<button data-wish="'+note_id+'" onclick="toggleWishlist('+note_id+',event)" title="Wishlist" style="background:#fff;border:1px solid var(--line);border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;color:'+(wished ? "#dc2626" : "#9aa0b8")+'">'+(wished ? "♥" : "♡")+'</button></div>' +
       '<div class="meta">'+esc(n.subject||"")+' · '+esc(n.department||"")+(n.semester?' · Semester '+n.semester:'')+' · by '+esc(n.seller_name||"Unknown seller")+' · '+fmtDate(n.created_at)+' · 👁 '+(Number(n.views)||0)+' views</div>' +
+      (n.seller_id ? '<div style="margin:10px 0"><button class="btn ghost" onclick="chatWithSeller(\''+n.seller_id+'\',\''+esc(n.seller_name||"Seller").replace(/'/g,"\\'")+'\')">\uD83D\uDCAC Chat with seller</button></div>' : '') +
       '<div class="topline">'+priceStr(n.price)+starStr(n.rating)+
       '<span style="font-size:13.5px;color:var(--muted)">'+(Number(n.rating)||0).toFixed(1)+' · '+(n.review_count||0)+' reviews · '+(n.downloads||0)+' downloads</span></div>' +
       (n.ai_summary ? '<div class="desc">'+esc(n.ai_summary)+'</div>' : '') +
@@ -1083,59 +1136,208 @@ async function checkAccess(){
   }catch(e){ area.innerHTML = '<div class="err">Failed: '+esc(e.message)+'</div>'; }
 }
 
-/* ================= ANONYMOUS CHAT ================= */
-let chatSub = null, lastChatSent = 0, myChatToken = null;
-const CHAT_ANIMALS = ["🦊","🐼","🐨","🐯","🦁","🐸","🐵","🐷","🐰","🐻","🐶","🐱","🦄","🐝","🦋","🐢","🐙","🦜","🐳","🦉"];
-function anonTag(sender_id){
-  let h = 0; const s = String(sender_id || "");
-  for(let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) >>> 0;
-  return "Anonymous " + CHAT_ANIMALS[h % CHAT_ANIMALS.length];
+function chatWithSeller(sellerUid, sellerName){
+  const u = currentUser();
+  if(!u){ toast("Please login or create an account first"); go("login"); return; }
+  if(sellerUid === u.uid){ toast("Ye aapka apna note hye"); return; }
+  go("chat", {with: sellerUid, name: sellerName || "Seller"});
 }
-function chatMsgHtml(m, me, showDel){
-  const mine = myChatToken && m.sender_id === myChatToken;
-  return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '"><div class="who">' + esc(anonTag(m.sender_id)) + (mine ? " (aap)" : "") + '</div>' +
-    '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) +
-    (showDel ? ' · <button class="del" onclick="adminChatDel(' + m.id + ')">🗑 delete</button>' : "") + '</div></div>';
+
+/* ================= CHAT v2: real names + WhatsApp-style private ================= */
+let chatSub = null, pmSub = null, lastChatSent = 0, lastPmSent = 0;
+let pmPartnerUid = null, pmPartnerName = "";
+
+function chatMsgHtml(m, me){
+  const mine = m.sender_id === me.uid;
+  const nm = esc(m.sender_name || "User");
+  return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
+    '<div class="who' + (mine ? "" : " clickable") + '"' + (mine ? "" : ' onclick="openPrivateChat(\'' + m.sender_id + '\',\'' + nm.replace(/'/g, "\\'") + '\')" title="Private chat"') + '>' + nm + (mine ? " (aap)" : "") + '</div>' +
+    '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
 }
-VIEWS.chat = async function(){
+
+VIEWS.chat = async function(arg){
   const u = requireLogin(); if(!u) return;
   if(chatSub){ try{ chatSub.unsubscribe(); }catch(e){} chatSub = null; }
-  try{ const r = await db.rpc("my_anon_token"); myChatToken = r.data || null; }catch(e){ myChatToken = null; }
-  app.innerHTML = '<div class="section-title" style="margin-top:4px">💬 Anonymous chat</div>' +
-    '<div class="sub" style="margin-bottom:12px">'+T("🕵️ Yahan <b>sab anonymous</b> hain — kisi ko nahi pata chalega kon likh raha hye. Notes request karein, e.g. <i>\"Mujhe Physics Ch.4 ke neat notes chahiye\"</i> — jis ke paas honge wo note ka title bata dega.")+'</div>' +
-    '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
-    '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="'+T("Apna message likhein…")+'" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
-    '<div class="sub" style="margin-top:8px">'+T("⚠️ Galat zaban ya spam par admin message delete kar sakta hye.")+'</div>';
-  const box = document.getElementById("chatBox");
+  if(pmSub){ try{ pmSub.unsubscribe(); }catch(e){} pmSub = null; }
+  pmPartnerUid = null;
+  app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat</div>' +
+    '<div class="chattabs"><button id="tabGroup" class="active" onclick="showChatTab(\'group\')">\uD83D\uDC65 Group</button>' +
+    '<button id="tabPrivate" onclick="showChatTab(\'private\')">\uD83D\uDCAC Private <span id="pmBadge"></span></button></div>' +
+    '<div id="chatGroupPane">' +
+      '<div class="sub" style="margin-bottom:12px">Yahan sab apne <b>asal naam</b> se likhte hain. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.</div>' +
+      '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
+      '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="Apna message likhein…" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
+      '<div class="sub" style="margin-top:8px">\u26A0\uFE0F Galat zaban ya spam par admin message delete kar sakta hye.</div>' +
+    '</div>' +
+    '<div id="chatPrivatePane" style="display:none">' +
+      '<div id="convList"><div class="loading">Loading chats…</div></div>' +
+      '<div id="pmThread" style="display:none">' +
+        '<button class="back" onclick="closePmThread()">\u2190 Back</button>' +
+        '<div class="pm-head"><div class="avatar" id="pmAvatar">?</div><div><b id="pmName"></b><div class="sub" style="margin:0">private chat</div></div></div>' +
+        '<div id="pmBox" class="chatbox"><div class="loading">Loading…</div></div>' +
+        '<form class="chatform" onsubmit="sendPmMsg(event)"><input id="pmInp" maxlength="500" placeholder="Message likhein…" autocomplete="off"><button class="btn" type="submit">Send</button></form>' +
+      '</div>' +
+    '</div>';
+  loadGroupChat(u);
+  loadConversations();
+  subscribePm(u);
+  if(arg && arg.with && arg.with !== u.uid){
+    openPrivateChat(arg.with, arg.name || "User");
+  }
+};
+
+function showChatTab(which){
+  document.getElementById("tabGroup").classList.toggle("active", which === "group");
+  document.getElementById("tabPrivate").classList.toggle("active", which === "private");
+  document.getElementById("chatGroupPane").style.display = which === "group" ? "" : "none";
+  document.getElementById("chatPrivatePane").style.display = which === "private" ? "" : "none";
+  if(which === "private") loadConversations();
+}
+
+async function loadGroupChat(u){
+  const box = document.getElementById("chatBox"); if(!box) return;
   try{
-    const {data, error} = await db.from("chat_messages").select("id,sender_id,text,created_at").order("created_at",{ascending:false}).limit(60);
+    const {data, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,created_at").order("created_at",{ascending:false}).limit(60);
     if(error) throw error;
     const msgs = (data || []).reverse();
-    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u, false); }).join("") : '<div class="empty">'+T("Abhi koi message nahi — pehla message aap bhejein! 👋")+'</div>';
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u); }).join("") : '<div class="empty">Abhi koi message nahi — pehla message aap bhejein! \uD83D\uDC4B</div>';
     box.scrollTop = box.scrollHeight;
-  }catch(e){ box.innerHTML = '<div class="err">'+T("Chat load nahi ho saka: ")+esc(e.message)+'</div>'; return; }
+  }catch(e){ box.innerHTML = '<div class="err">Chat load nahi ho saka: '+esc(e.message)+'</div>'; return; }
   chatSub = db.channel("chat-room")
     .on("postgres_changes", {event:"INSERT", schema:"public", table:"chat_messages"}, function(p){
       if(currentView !== "chat") return;
       const b = document.getElementById("chatBox"); if(!b) return;
       const em = b.querySelector(".empty"); if(em) em.remove();
       if(b.querySelector('[data-mid="' + p.new.id + '"]')) return;
-      b.insertAdjacentHTML("beforeend", chatMsgHtml(p.new, currentUser(), false));
+      b.insertAdjacentHTML("beforeend", chatMsgHtml(p.new, currentUser()));
       b.scrollTop = b.scrollHeight;
     }).subscribe();
-};
+}
+
 async function sendChatMsg(ev){
   ev.preventDefault();
   const u = currentUser(); if(!u) return;
   const inp = document.getElementById("chatInp");
   const t = (inp.value || "").trim();
   if(!t) return;
-  if(t.length > 500){ toast(T("Message 500 characters se zyada nahi ho sakta")); return; }
+  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
   const now = Date.now();
-  if(now - lastChatSent < 3000){ toast(T("Thoda rukein — 3 second me 1 message ⏳")); return; }
+  if(now - lastChatSent < 3000){ toast("Thoda rukein — 3 second me 1 message \u23F3"); return; }
   lastChatSent = now; inp.value = "";
   const {error} = await db.rpc("send_chat_message", {p_text: t});
-  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? T("Thoda rukein — 3 second me 1 message ⏳") : error.message)); lastChatSent = 0; }
+  if(error){ toast("Failed: " + (/slow down/i.test(error.message) ? "Thoda rukein — 3 second me 1 message \u23F3" : error.message)); lastChatSent = 0; }
+}
+
+/* ---------- private chat ---------- */
+function pmAvatarHtml(name){
+  const ch = (name || "U").trim().charAt(0).toUpperCase();
+  return esc(ch);
+}
+
+async function loadConversations(){
+  const u = currentUser(); if(!u) return;
+  const list = document.getElementById("convList"); if(!list) return;
+  try{
+    const {data, error} = await db.rpc("my_conversations");
+    if(error) throw error;
+    const convs = data || [];
+    let totalUnread = 0;
+    convs.forEach(function(c){ totalUnread += Number(c.unread_count) || 0; });
+    const badge = document.getElementById("pmBadge");
+    if(badge) badge.innerHTML = totalUnread ? '<span class="unread">' + totalUnread + '</span>' : '';
+    if(!convs.length){
+      list.innerHTML = '<div class="empty">Koi private chat nahi — kisi note ke seller se <b>\uD83D\uDCAC Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.</div>';
+      return;
+    }
+    list.innerHTML = convs.map(function(c){
+      const nm = esc(c.partner_name || "User");
+      const un = Number(c.unread_count) || 0;
+      return '<div class="conv" onclick="openPrivateChat(\'' + c.partner_uid + '\',\'' + nm.replace(/'/g, "\\'") + '\')">' +
+        '<div class="avatar">' + pmAvatarHtml(c.partner_name) + '</div>' +
+        '<div class="conv-main"><div class="conv-top"><b>' + nm + '</b><span class="ts">' + fmtDateTime(c.last_at) + '</span></div>' +
+        '<div class="conv-sub"><span>' + esc((c.last_text || "").slice(0, 60)) + '</span>' + (un ? '<span class="unread">' + un + '</span>' : '') + '</div></div></div>';
+    }).join("");
+  }catch(e){
+    list.innerHTML = '<div class="err">Chats load nahi ho sakein: ' + esc(e.message) + '</div>';
+  }
+}
+
+function pmMsgHtml(m, me){
+  const mine = m.sender_uid === me.uid;
+  return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
+    '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+}
+
+async function openPrivateChat(uid, name){
+  const u = currentUser(); if(!u) return;
+  if(!uid || uid === u.uid){ toast("Aap khud se chat nahi kar sakte"); return; }
+  pmPartnerUid = uid; pmPartnerName = name || "User";
+  showChatTab("private");
+  document.getElementById("convList").style.display = "none";
+  const th = document.getElementById("pmThread"); th.style.display = "";
+  document.getElementById("pmName").textContent = pmPartnerName;
+  document.getElementById("pmAvatar").textContent = pmAvatarHtml(pmPartnerName);
+  const box = document.getElementById("pmBox");
+  box.innerHTML = '<div class="loading">Loading…</div>';
+  try{
+    const {data, error} = await db.from("private_messages")
+      .select("id,sender_uid,sender_name,text,created_at")
+      .or("and(sender_uid.eq." + u.uid + ",receiver_uid.eq." + uid + "),and(sender_uid.eq." + uid + ",receiver_uid.eq." + u.uid + ")")
+      .order("created_at", {ascending:true}).limit(200);
+    if(error) throw error;
+    const msgs = data || [];
+    box.innerHTML = msgs.length ? msgs.map(function(m){ return pmMsgHtml(m, u); }).join("") : '<div class="empty">Koi message nahi — pehla message bhejein! \uD83D\uDC4B</div>';
+    box.scrollTop = box.scrollHeight;
+    db.rpc("mark_chat_read", {p_partner_uid: uid}).then(function(){ loadConversations(); }, function(){});
+  }catch(e){ box.innerHTML = '<div class="err">Messages load nahi ho sakein: ' + esc(e.message) + '</div>'; }
+}
+
+function closePmThread(){
+  pmPartnerUid = null;
+  document.getElementById("pmThread").style.display = "none";
+  document.getElementById("convList").style.display = "";
+  loadConversations();
+}
+
+async function sendPmMsg(ev){
+  ev.preventDefault();
+  const u = currentUser(); if(!u || !pmPartnerUid) return;
+  const inp = document.getElementById("pmInp");
+  const t = (inp.value || "").trim();
+  if(!t) return;
+  if(t.length > 500){ toast("Message 500 characters se zyada nahi ho sakta"); return; }
+  const now = Date.now();
+  if(now - lastPmSent < 2000){ toast("Thoda rukein… \u23F3"); return; }
+  lastPmSent = now; inp.value = "";
+  const {error} = await db.rpc("send_private_message", {p_to_uid: pmPartnerUid, p_text: t});
+  if(error){ toast("Failed: " + error.message); lastPmSent = 0; return; }
+  const box = document.getElementById("pmBox");
+  const em = box.querySelector(".empty"); if(em) em.remove();
+  // optimistic render; realtime will also catch it (dedup by id unknown yet — realtime insertAdjacentHTML checks data-mid, ours has none, fine)
+  loadConversations();
+}
+
+function subscribePm(u){
+  if(pmSub){ try{ pmSub.unsubscribe(); }catch(e){} }
+  pmSub = db.channel("pm-room")
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"private_messages"}, function(p){
+      const m = p.new;
+      if(m.sender_uid !== u.uid && m.receiver_uid !== u.uid) return;
+      if(currentView !== "chat") { return; }
+      // if thread open with this partner, append
+      if(pmPartnerUid && (m.sender_uid === pmPartnerUid || m.receiver_uid === pmPartnerUid)){
+        const box = document.getElementById("pmBox");
+        if(box){
+          const em = box.querySelector(".empty"); if(em) em.remove();
+          if(!box.querySelector('[data-mid="' + m.id + '"]')){
+            box.insertAdjacentHTML("beforeend", pmMsgHtml(m, u));
+            box.scrollTop = box.scrollHeight;
+          }
+          if(m.receiver_uid === u.uid) db.rpc("mark_chat_read", {p_partner_uid: pmPartnerUid});
+        }
+      }
+      loadConversations();
+    }).subscribe();
 }
 
 /* ================= SELL ================= */
@@ -1749,15 +1951,19 @@ async function adminWithdrawSet(request_id, seller_id, amount, status){
     adminDash(currentUser(), "withdrawals");
   }catch(e){ alert("Failed: " + e.message); }
 }
-/* ---- admin: anonymous chat moderation (admin sees anon tags only, can delete) ---- */
+/* ---- admin: group chat moderation (real names, can delete) ---- */
 async function adminChatView(s){
   try{
-    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,text,created_at").order("created_at",{ascending:false}).limit(100);
+    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,created_at").order("created_at",{ascending:false}).limit(100);
     if(error) throw error;
-    app.innerHTML = adminHead(s, T("Anonymous chat ki moderation — galat message <b>delete</b> karein. Sab anonymous nazar aayenge.")) +
+    app.innerHTML = adminHead(s, "Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.") +
       adminTabs("chat") +
       '<div class="chatbox" style="height:auto;max-height:60vh">' +
-      ((msgs && msgs.length) ? msgs.map(function(m){ return chatMsgHtml(m, s, true); }).join("") : '<div class="empty">'+T("Koi message nahi.")+'</div>') +
+      ((msgs && msgs.length) ? msgs.map(function(m){
+        return '<div class="chatmsg" data-mid="' + m.id + '"><div class="who">' + esc(m.sender_name || "User") + '</div>' +
+          '<div class="txt">' + esc(m.text) + '</div><div class="ts">' + fmtDateTime(m.created_at) +
+          ' · <button class="del" onclick="adminChatDel(' + m.id + ')">\uD83D\uDDD1 delete</button></div></div>';
+      }).join("") : '<div class="empty">'+T("Koi message nahi.")+'</div>') +
       '</div>';
   }catch(e){ app.innerHTML = '<div class="err">Could not load chat: ' + esc(e.message) + '</div>'; }
 }
