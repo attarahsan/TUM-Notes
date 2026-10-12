@@ -279,9 +279,11 @@ img{max-width:100%;height:auto}
 .wm-wrap{position:relative}
 .wm-overlay{position:absolute;inset:0;pointer-events:none;z-index:6;background-repeat:repeat}
 /* group + private chat (WhatsApp style) */
-.chattabs{display:flex;gap:8px;margin-bottom:14px}
-.chattabs button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:14.5px;cursor:pointer;font-family:inherit}
+.chattabs{position:fixed;left:0;right:0;bottom:0;z-index:90;display:flex;gap:6px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(14,14,20,.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(232,200,116,.3);box-shadow:0 -8px 30px rgba(0,0,0,.45)}
+body.light .chattabs{background:rgba(255,253,248,.97)}
+.chattabs button{flex:1;padding:11px 6px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:14.5px;cursor:pointer;font-family:inherit}
 .chattabs button.active{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a;border-color:transparent}
+.chatview{padding-bottom:84px}
 .conv{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;cursor:pointer;border:1px solid transparent}
 .conv:hover{background:var(--brand-soft)}
 .conv .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e9c85a,#9c7a1e);color:#1a150a;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
@@ -1368,7 +1370,7 @@ VIEWS.chat = async function(arg){
   const un = await getMyUsername();
   if(!un){ renderUsernameSetup(); return; }
   const startTab = (arg && arg.tab) || ((arg && arg.with) ? "private" : "group");
-  app.innerHTML = '<div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat <span style="font-size:13px;color:var(--muted);font-weight:600">@' + esc(un) + ' <a href="#" onclick="renderUsernameSetup();return false;" style="color:var(--brand);font-size:12px">edit</a></span></div>' +
+  app.innerHTML = '<div class="chatview"><div class="section-title" style="margin-top:4px">\uD83D\uDCAC Chat <span style="font-size:13px;color:var(--muted);font-weight:600">@' + esc(un) + ' <a href="#" onclick="renderUsernameSetup();return false;" style="color:var(--brand);font-size:12px">edit</a></span></div>' +
     '<div class="chattabs"><button id="tabGroup" onclick="showChatTab(\'group\')">'+T("\uD83D\uDC65 Group")+'</button>' +
     '<button id="tabPrivate" onclick="showChatTab(\'private\')">'+T("\uD83D\uDCAC Private")+' <span id="pmBadge"></span></button>' +
     '<button id="tabGroups" onclick="showChatTab(\'groups\')">'+T("\uD83D\uDC6A Groups")+' <span id="grpBadge"></span></button></div>' +
@@ -1401,10 +1403,10 @@ VIEWS.chat = async function(arg){
         '<div id="grpBox" class="chatbox"><div class="loading">Loading…</div></div>' +
         '<form class="chatform" onsubmit="sendGroupMsg(event)"><input id="grpInp" maxlength="500" placeholder="'+T("Message likhein…")+'" autocomplete="off">' +
         '<button type="button" class="btn ghost" onclick="openNotePicker(\'group\')" title="Attach note">\uD83D\uDCCE</button>' +
-        '<button type="button" class="btn ghost" id="voiceBtnGrp" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
+        '<button type="button" class="btn ghost" id="voiceBtnGrp" onclick="toggleVoiceRecording(\'grp\')" title="Voice message">\uD83C\uDFA4</button>' +
         '<button class="btn" type="submit">Send</button></form>' +
       '</div>' +
-    '</div>';
+    '</div></div>';
   loadGroupChat(u);
   loadConversations();
   loadMyGroups();
@@ -1889,6 +1891,7 @@ async function showGroupMembers(){
         (isAdmin && !m.is_admin && m.user_uid !== u.uid ? '<button class="btn small danger" onclick="removeMember(' + groupId + ',\'' + m.user_uid + '\')">Remove</button>' : '') +
         '</div>';
     }).join("") +
+    (isAdmin ? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)"><div class="field"><label>➕ '+T("Add members (usernames, comma se alag)")+'</label><input id="addMemInp" placeholder="e.g. ahmed_notes, sara_k"></div><div id="addMemMsg"></div><button class="btn small" onclick="addGroupMembers()" style="width:100%">'+T("Send invites")+'</button><div class="sub" style="margin-top:6px">'+T("Invite jayega — approve karne par hi wo add hoga.")+'</div></div>' : '') +
     '<button class="btn ghost" onclick="leaveGroup()" style="width:100%;margin-top:12px">'+T("Leave group")+'</button></div>';
   document.body.appendChild(ov);
   ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
@@ -1913,6 +1916,22 @@ async function removeMember(gid, uid){
   if(error){ toast("Failed: " + error.message); return; }
   document.getElementById("grpMemOv").remove();
   showGroupMembers(); reloadGroupThread();
+}
+async function addGroupMembers(){
+  if(!groupId) return;
+  const inp = document.getElementById("addMemInp");
+  const msg = document.getElementById("addMemMsg");
+  const users = (inp.value || "").split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  if(!users.length){ msg.innerHTML = '<div class="notice warn">'+T("Pehle koi username likhein.")+'</div>'; return; }
+  msg.innerHTML = T("Sending invites…");
+  const {data, error} = await db.rpc("add_group_members", {p_group_id: groupId, p_usernames: users});
+  if(error){
+    msg.innerHTML = '<div class="err">'+esc(/function public.add_group_members/i.test(error.message) || /PGRST202/i.test(error.message) ? T("Backend update pending hai — thodi der baad try karein.") : error.message)+'</div>';
+    return;
+  }
+  inp.value = "";
+  msg.innerHTML = '<div class="notice ok">✅ '+T("Invites bhej diye")+': '+(data||0)+'</div>';
+  setTimeout(function(){ document.getElementById("grpMemOv").remove(); showGroupMembers(); }, 900);
 }
 async function leaveGroup(){
   if(!confirm(T("Group leave kar dein?"))) return;
