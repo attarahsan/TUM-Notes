@@ -1193,18 +1193,28 @@ function showUnlockForm(){
       '<div class="notice" style="margin-top:8px">'+T("🔒 Preview pages par aapke naam ka watermark hye. Poori file unlock ke baad milegi.")+'</div>';
   }
   const depBal = Number(u.deposit_balance||0), price = Number(n.price)||0;
-  const instantBox = price > 0 && depBal >= price
-    ? '<div class="fcard" style="border:2px solid var(--brand);margin-bottom:16px"><h2>⚡ '+T("Instant buy with deposit balance")+'</h2>' +
-      '<div class="sub">'+T("Available")+': <b>Rs '+depBal.toLocaleString()+'</b> · '+T("Price")+': <b>Rs '+price.toLocaleString()+'</b></div>' +
-      '<button class="btn" style="width:100%" onclick="buyWithBalance()">'+T("Buy now — Rs ")+price.toLocaleString()+'</button><div id="u_msg2" style="margin-top:10px"></div></div>'
-    : (price > 0 ? '<div class="notice warn" style="margin-bottom:16px">⚡ '+T("Deposit balance kam hai — pehle deposit karein.")+' <a href="javascript:go(\'wallet\')">'+T("Wallet par jayein")+'</a></div>' : '');
+  const canInstant = price > 0 && depBal >= price;
+  const depositCard =
+    '<div class="fcard" style="border:2px solid var(--brand);margin-bottom:16px"><h2>⚡ '+T("Method 1: Deposit balance")+'</h2>' +
+    '<div class="sub">'+T("Available")+': <b>Rs '+depBal.toLocaleString()+'</b> · '+T("Price")+': <b>Rs '+price.toLocaleString()+'</b></div>' +
+    (canInstant
+      ? '<div class="notice ok" style="margin:10px 0">'+T("Foran unlock — na screenshot, na admin approval.")+'</div>' +
+        '<button class="btn" style="width:100%" onclick="buyWithBalance()">'+T("Buy now — Rs ")+price.toLocaleString()+'</button><div id="u_msg2" style="margin-top:10px"></div>'
+      : '<div class="notice warn" style="margin:10px 0">'+T("Balance kam hai.")+'</div>' +
+        '<button class="btn" style="width:100%" onclick="go(\'wallet\')">'+T("Deposit karein")+'</button>') +
+    '</div>';
+  const manualCard =
+    '<div class="fcard" style="margin-bottom:16px"><h2>📸 '+T("Method 2: Easypaisa payment")+'</h2>' +
+    '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')<br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
+    '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
+    '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>' +
+    '<div class="sub" style="margin-top:8px">'+T("Admin verify karke approve karega, phir note unlock ho jayega.")+'</div></div>';
   document.getElementById("unlockArea").innerHTML =
     '<div class="notice">Paying as <b>'+esc(u.name)+'</b> ('+esc(u.email||"")+')</div>' +
     previewHtml +
-    instantBox +
-    '<div class="notice warn"><b>Step 1:</b> Send <b>Rs '+Number(n.price).toLocaleString()+'</b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')<br><b>Step 2:</b> Take a screenshot of the payment and attach it below.</div>' +
-    '<div class="field"><label>Payment screenshot *</label><input id="u_proof" type="file" accept="image/*"></div>' +
-    '<button class="btn" onclick="submitOrder()">I have paid — send screenshot to admin</button><div id="u_msg" style="margin-top:10px"></div>';
+    '<div class="section-title" style="font-size:17px">'+T("Apna method chunein")+'</div>' +
+    depositCard +
+    manualCard;
   applyWatermarks();
   if(n.note_type !== "images" && n.file_url) renderPdfPreview(n.file_url, "buyPdfPreview", 6);
 }
