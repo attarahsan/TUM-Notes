@@ -1,0 +1,26 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Stage functions in CLI layout
+        run: |
+          for f in create-deposit cashmaal-webhook buy-with-balance delete-note; do
+            mkdir -p supabase/functions/$f
+            cp supabase-functions/$f.ts supabase/functions/$f/index.ts
+          done
+
+      - name: Deploy functions
+        run: supabase functions deploy create-deposit cashmaal-webhook buy-with-balance delete-note --project-ref xsvkyiigcjibgkcytssr
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
