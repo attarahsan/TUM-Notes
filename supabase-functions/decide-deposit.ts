@@ -44,6 +44,11 @@ serve(async (req) => {
     if (dep.status !== "pending") return J({ error: "already " + dep.status }, 400);
 
     if (action === "approve") {
+      // cashmaal deposits auto-credit via the IPN webhook — manual approve is blocked
+      // unless the admin explicitly passes force_cashmaal:true after verifying the
+      // payment in the CashMaal merchant dashboard.
+      if (dep.method === "cashmaal" && body.force_cashmaal !== true)
+        return J({ error: "cashmaal deposits credit automatically via webhook — manual approve blocked (pass force_cashmaal:true only after verifying payment in CashMaal dashboard)" }, 400);
       // credit deposit balance (service_role bypasses protect_balances trigger)
       const { data: u } = await supa.from("users").select("deposit_balance").eq("uid", dep.user_id).single();
       const cur = Number((u as { deposit_balance?: number })?.deposit_balance) || 0;
