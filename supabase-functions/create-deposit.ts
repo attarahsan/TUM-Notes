@@ -1,11 +1,7 @@
-// create-deposit — buyer starts a CashMaal deposit.
-// Creates a pending deposit record and returns the CashMaal payment URL.
+// create-deposit — buyer starts a deposit (CashMaal instant OR manual Easypaisa+screenshot).
+// method=cashmaal: creates pending deposit, returns CashMaal payment URL (needs CASHMAAL_WEB_ID).
+// method=manual: creates pending deposit with payment proof screenshot; admin approves via decide-deposit.
 // Auth: buyer user JWT.
-//
-// NOTE: The CashMaal payment URL construction needs the merchant WEB ID and
-// their API docs (available after the user creates a merchant account).
-// Until then, this returns the deposit_id so the user can pay manually
-// referencing it; the cashmaal-webhook credits on callback.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -38,24 +34,54 @@ serve(async (req) => {
     if (!(amount >= 50)) return J({ error: "minimum deposit Rs 50" }, 400);
     if (amount > 100000) return J({ error: "maximum deposit Rs 100,000" }, 400);
 
+    const method = String(body.method || "cashmaal");
+    if (method !== "cashmaal" && method !== "manual") return J({ error: "bad method" }, 400);
+
+    const { data: me } = await supa.from("users").select("name,email").eq("uid", user.id).single();
+    const meRow = (me as { name?: string; email?: string }) || {};
+
+    if (method === "manual") {
+      const proof_url = String(body.proof_url || "");
+      if (!proof_url) return J({ error: "payment screenshot zaroori hai" }, 400);
+      const { data: dep, error: dErr } = await supa.from("deposits").insert({
+        user_id: user.id, amount, status: "pending", method: "manual",
+        payment_proof_url: proof_url,
+        user_name: meRow.name || "", user_email: meRow.email || user.email || "",
+      }).select("deposit_id").single();
+      if (dErr) return J({ error: dErr.message }, 500);
+      return J({ ok: true, deposit_id: (dep as { deposit_id: number }).deposit_id, amount, method: "manual",
+        note: "Screenshot mil gaya — admin verify karke deposit balance me add karega." });
+    }
+
+    // cashmaal
     const { data: dep, error: dErr } = await supa.from("deposits").insert({
-      user_id: user.id, amount, status: "pending",
+      user_id: user.id, amount, status: "pending", method: "cashmaal",
+      user_name: meRow.name || "", user_email: meRow.email || user.email || "",
     }).select("deposit_id").single();
     if (dErr) return J({ error: dErr.message }, 500);
     const depositId = (dep as { deposit_id: number }).deposit_id;
 
-    // TODO: build real CashMaal payment URL once WEB ID + API docs are available.
-    // Expected shape (to confirm from docs):
-    //   https://www.cashmaal.com/pay?web_id=WEB_ID&amount=AMOUNT&order_id=DEPOSIT_ID&callback=...
+    // CashMaal hosted payment page. Confirm exact params from merchant API docs
+    // once the merchant account is created; fields below follow the IPN doc's
+    // naming (web_id, order_id, Amount).
     let payment_url: string | null = null;
+    let payment_form: Record<string, string> | null = null;
     if (CASHMAAL_WEB_ID) {
-      payment_url = "https://www.cashmaal.com/pay?web_id=" + encodeURIComponent(CASHMAAL_WEB_ID) +
-        "&amount=" + amount + "&order_id=" + depositId +
-        "&callback=" + encodeURIComponent(APP_URL + "/#wallet");
+      payment_form = {
+        web_id: CASHMAAL_WEB_ID,
+        order_id: String(depositId),
+        Amount: String(amount),
+        currency: "PKR",
+        client_email: user.email || "",
+        addi_info: "TUM Notes deposit #" + depositId,
+        callback_url: APP_URL + "/#wallet",
+      };
+      payment_url = "https://www.cashmaal.com/pay";
     }
 
-    return J({ ok: true, deposit_id: depositId, amount, payment_url,
-      manual: !payment_url ? "CashMaal abhi connect nahi — deposit_id note kar lein" : null });
+    return J({ ok: true, deposit_id: depositId, amount, method: "cashmaal",
+      payment_url, payment_form,
+      manual: !payment_url ? "CashMaal abhi connect nahi — manual method istemal karein" : null });
   } catch (e) {
     return J({ error: String((e as Error)?.message || e) }, 500);
   }

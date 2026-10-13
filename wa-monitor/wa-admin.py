@@ -6,6 +6,7 @@ Usage:
   wa-admin.py order approve <order_id> | order reject <order_id>
   wa-admin.py note approve <note_id>   | note reject <note_id>
   wa-admin.py withdrawal approve <request_id> | withdrawal reject <request_id>
+  wa-admin.py deposit approve <deposit_id> | deposit reject <deposit_id>
   wa-admin.py pending   (list current pending items, for testing)
 """
 import json, sys, os, urllib.request, urllib.error
@@ -70,8 +71,11 @@ def main():
     elif kind == "withdrawal":
         d = call_fn("decide-withdrawal", {"request_id": rid, "action": act})
         ok("Withdrawal %s -> %s" % (rid, d.get("status")))
+    elif kind == "deposit":
+        d = call_fn("decide-deposit", {"deposit_id": int(rid), "action": act})
+        ok("Deposit %s -> %s%s" % (rid, d.get("status"), (" (credited Rs %s)" % d.get("credited")) if d.get("credited") else ""))
     else:
-        fail("Unknown kind: " + kind + " (use order|note|withdrawal)")
+        fail("Unknown kind: " + kind + " (use order|note|withdrawal|deposit)")
 
 if __name__ == "__main__":
     main()

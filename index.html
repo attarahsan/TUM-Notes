@@ -2172,13 +2172,20 @@ VIEWS.wallet = async function(){
         '<div id="refStats" style="margin-top:8px"><div class="loading">'+T("Team stats load ho rahi hain…")+'</div></div>'
       : '<div class="notice warn">'+T("Referral code abhi tayyar nahi — page reload karein.")+'</div>') + '</div>' +
     '<div class="fcard" style="margin-bottom:24px;border:2px solid var(--brand)"><h2>💰 '+T("Deposit")+'</h2>' +
-    '<div class="sub">'+T("CashMaal se deposit karein — ye balance <b>sirf notes khareedne</b> ke liye istemal hoga.")+'</div><div id="d_msg"></div>' +
-    (CASHMAAL_ENABLED ? '' : '<div class="notice warn">'+T("CashMaal jald aa raha hai — deposit request abhi se bana sakte hain.")+'</div>') +
+    '<div class="sub">'+T("Ye balance <b>sirf notes khareedne</b> ke liye istemal hoga (withdraw nahi ho sakta).")+'</div><div id="d_msg"></div>' +
     '<div class="frow2"><div class="field"><label>'+T("Amount (Rs) *")+'</label><input id="d_amount" type="number" min="50" placeholder="e.g. 500"></div></div>' +
-    '<button class="btn" style="width:100%" onclick="startDeposit()">'+T("Deposit via CashMaal")+'</button></div>' +
+    '<div class="section-title" style="font-size:16px;margin:14px 0 10px">⚡ '+T("Method 1: CashMaal (foran)")+'</div>' +
+    '<div class="sub">'+T("JazzCash, Easypaisa, NayaPay, SadaPay, UPaisa, bank, Raast se foran deposit — balance turant add ho jayega.")+'</div>' +
+    (CASHMAAL_ENABLED
+      ? '<button class="btn" style="width:100%" onclick="startDeposit(\'cashmaal\')">'+T("Deposit via CashMaal")+'</button>'
+      : '<div class="notice warn">'+T("⏳ CashMaal connect ho raha hai — tab tak Method 2 istemal karein.")+'</div>') +
+    '<div class="section-title" style="font-size:16px;margin:18px 0 10px">📸 '+T("Method 2: Easypaisa (manual)")+'</div>' +
+    '<div class="notice warn"><b>Step 1:</b> <b>Rs <span id="d_amt_show">—</span></b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+') bhejein<br><b>Step 2:</b> Screenshot lagayein — admin verify karke deposit balance me add karega.</div>' +
+    '<div class="field"><label>'+T("Payment screenshot *")+'</label><input id="d_proof" type="file" accept="image/*"></div>' +
+    '<button class="btn ghost" style="width:100%" onclick="startDeposit(\'manual\')">'+T("Screenshot bhejein — manual deposit")+'</button></div>' +
     '<div class="section-title" style="font-size:18px">'+T("Deposit history")+'</div>' +
-    ((deps && deps.length) ? '<div style="overflow-x:auto;margin-bottom:24px"><table class="admin"><tr><th>'+T("Amount")+'</th><th>'+T("Date")+'</th><th>'+T("Status")+'</th></tr>' +
-      deps.map(function(d){ return '<tr><td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td><td style="white-space:nowrap">'+fdt(d.created_at)+'</td><td><span class="badge '+(d.status==="pending"?"pending":d.status==="failed"?"rejected":"")+'">'+esc(d.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
+    ((deps && deps.length) ? '<div style="overflow-x:auto;margin-bottom:24px"><table class="admin"><tr><th>'+T("Amount")+'</th><th>'+T("Method")+'</th><th>'+T("Date")+'</th><th>'+T("Status")+'</th></tr>' +
+      deps.map(function(d){ return '<tr><td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td><td>'+(d.method==="manual"?"📸 Manual":"⚡ CashMaal")+'</td><td style="white-space:nowrap">'+fdt(d.created_at)+'</td><td><span class="badge '+(d.status==="pending"?"pending":(d.status==="failed"||d.status==="rejected")?"rejected":"")+'">'+esc(d.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
       : '<div class="empty" style="margin-bottom:24px">'+T("Koi deposit nahi hui abhi.")+'</div>') +
     (hasWp ?
       '<form class="fcard" onsubmit="submitWithdraw(event)" style="margin-bottom:24px"><h2>Withdraw</h2>' +
@@ -2253,7 +2260,7 @@ async function submitWithdraw(ev){
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
   }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 }
-async function startDeposit(){
+async function startDeposit(method){
   const me = currentUser(); if(!me) return;
   const amtEl = document.getElementById("d_amount");
   const msg = document.getElementById("d_msg");
@@ -2261,15 +2268,48 @@ async function startDeposit(){
   if(!amount || amount < 50){ msg.innerHTML = '<div class="notice warn">'+T("Kam az kam Rs 50 deposit karein.")+'</div>'; return; }
   msg.innerHTML = "Processing…";
   try{
-    const {data, error} = await db.functions.invoke("create-deposit", {body: {amount: amount}});
+    if(method === "manual"){
+      const proof = document.getElementById("d_proof");
+      if(!proof.files.length){ msg.innerHTML = '<div class="notice warn">'+T("Payment screenshot lagayein.")+'</div>'; return; }
+      msg.innerHTML = T("Screenshot upload ho raha hye…");
+      const proofUrl = await uploadToStorage(proof.files[0], "proofs");
+      const {data, error} = await db.functions.invoke("create-deposit", {body: {amount: amount, method: "manual", proof_url: proofUrl}});
+      if(error) throw error;
+      if(data && data.error) throw new Error(data.error);
+      msg.innerHTML = '<div class="notice ok">✅ '+T("Screenshot mil gaya! Admin verify karke Rs ")+amount.toLocaleString()+T(" aapke deposit balance me add karega.")+'</div>';
+      amtEl.value = ""; proof.value = "";
+      setTimeout(function(){ VIEWS.wallet(); }, 1600);
+      return;
+    }
+    // cashmaal
+    const {data, error} = await db.functions.invoke("create-deposit", {body: {amount: amount, method: "cashmaal"}});
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
+    if(data && data.payment_url && data.payment_form){
+      // POST form to CashMaal hosted payment page
+      const f = document.createElement("form");
+      f.method = "POST"; f.action = data.payment_url;
+      Object.keys(data.payment_form).forEach(function(k){
+        const i = document.createElement("input");
+        i.type = "hidden"; i.name = k; i.value = data.payment_form[k];
+        f.appendChild(i);
+      });
+      document.body.appendChild(f); f.submit();
+      return;
+    }
     if(data && data.payment_url){ location.href = data.payment_url; return; }
-    msg.innerHTML = '<div class="notice ok">'+T("Deposit request #")+(data.deposit_id||"")+" "+T("ban gayi — CashMaal connect hote hi payment hogi.")+'</div>';
+    msg.innerHTML = '<div class="notice ok">'+T("Deposit request #")+(data.deposit_id||"")+" "+T("ban gayi.")+'</div>';
     amtEl.value = "";
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
   }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 }
+// deposit amount ko manual method ke step-1 me live dikhao
+document.addEventListener("input", function(e){
+  if(e.target && e.target.id === "d_amount"){
+    const s = document.getElementById("d_amt_show");
+    if(s) s.textContent = Number(e.target.value||0).toLocaleString();
+  }
+});
 /* ================= SUBSCRIPTION PLANS ================= */
 const PLANS = {
   free:     {name:"Free",     notes:25,      price:0,   per:"forever", features:["25 notes upload limit","Sell & earn 70% per sale","Free forever"]},
@@ -2598,15 +2638,30 @@ async function adminDepositsView(s){
     const fdt = function(v){ if(!v) return "—"; var d = new Date(v); return isNaN(d) ? "—" : d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) + ", " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); };
     const rows = (deps||[]).map(function(d){
       const x = umap[d.user_id] || {};
-      return '<tr><td><b>'+esc(x.name||"—")+'</b><br><span style="font-size:12.5px;color:var(--muted)">'+esc(x.email||"")+'</span></td>' +
-        '<td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td>' +
-        '<td><span class="badge '+(d.status==="pending"?"pending":d.status==="failed"?"rejected":"")+'">'+esc(d.status||"")+'</span></td>' +
+      const isManual = d.method === "manual";
+      return '<tr><td><b>'+esc(d.user_name||x.name||"—")+'</b><br><span style="font-size:12.5px;color:var(--muted)">'+esc(d.user_email||x.email||"")+'</span></td>' +
+        '<td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b><br><span style="font-size:12px;color:var(--muted)">'+(isManual?"📸 Manual":"⚡ CashMaal")+'</span></td>' +
+        '<td><span class="badge '+(d.status==="pending"?"pending":(d.status==="failed"||d.status==="rejected")?"rejected":"")+'">'+esc(d.status||"")+'</span></td>' +
         '<td style="font-size:12.5px;color:var(--muted)">'+esc(d.cashmaal_txn_id||"—")+'</td>' +
-        '<td style="white-space:nowrap">'+fdt(d.created_at)+'</td></tr>';
+        '<td style="white-space:nowrap">'+fdt(d.created_at)+'</td>' +
+        '<td class="acts">' +
+          (d.status === "pending" && isManual && d.payment_proof_url ? '<a class="btn small ghost" style="text-decoration:none" href="'+esc(d.payment_proof_url)+'" target="_blank" rel="noopener">📸 Proof</a> ' : '') +
+          (d.status === "pending" && isManual ? '<button class="btn small" onclick="adminDecideDeposit('+d.deposit_id+',\'approve\')">✅ Approve</button> <button class="btn small danger" onclick="adminDecideDeposit('+d.deposit_id+',\'reject\')">Reject</button>' : '') +
+        '</td></tr>';
     }).join("");
-    app.innerHTML = adminHead(s, T("CashMaal deposits — saare users ki deposit history yahan.")) + adminTabs("deposits") +
-      (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>'+T("User")+'</th><th>'+T("Amount")+'</th><th>'+T("Status")+'</th><th>'+T("CashMaal txn")+'</th><th>'+T("Date")+'</th></tr>'+rows+'</table></div>' : '<div class="empty">'+T("Koi deposit nahi hui abhi.")+'</div>');
+    app.innerHTML = adminHead(s, T("Deposits — manual walon ka screenshot verify karke approve karein (balance foran add ho jayega). CashMaal wale automatic hote hain.")) + adminTabs("deposits") +
+      (rows ? '<div style="overflow-x:auto"><table class="admin"><tr><th>'+T("User")+'</th><th>'+T("Amount")+'</th><th>'+T("Status")+'</th><th>'+T("CashMaal txn")+'</th><th>'+T("Date")+'</th><th>'+T("Actions")+'</th></tr>'+rows+'</table></div>' : '<div class="empty">'+T("Koi deposit nahi hui abhi.")+'</div>');
   }catch(e){ app.innerHTML = '<div class="err">Could not load deposits: '+esc(e.message)+'</div>'; }
+}
+async function adminDecideDeposit(deposit_id, action){
+  if(!confirm(action === "approve" ? "Deposit approve karke balance add kar dein?" : "Deposit reject kar dein?")) return;
+  try{
+    const {data, error} = await db.functions.invoke("decide-deposit", {body: {deposit_id: deposit_id, action: action}});
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    toast(action === "approve" ? "✅ Deposit approved — balance added" : "Deposit rejected");
+    adminDash(currentUser(), "deposits");
+  }catch(e){ alert("Failed: " + (e.message || e)); }
 }
 /* ---- admin: group chat moderation (real names, can delete) ---- */
 async function adminChatView(s){
@@ -2707,6 +2762,17 @@ function initRealtime(){
     .on("postgres_changes", {event:"INSERT", schema:"public", table:"subscriptions"}, function(p){
       toast("💎 New plan subscription — " + planName(p.new.plan));
       if(currentView === "admin") adminDash(currentUser(), "subs");
+    })
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"deposits"}, function(p){
+      toast("💳 New deposit request — Rs " + Number(p.new.amount||0).toLocaleString());
+      if(currentView === "admin") adminDash(currentUser(), "deposits");
+    })
+    .on("postgres_changes", {event:"UPDATE", schema:"public", table:"deposits"}, function(p){
+      const u = currentUser(); if(!u) return;
+      if(p.new.user_id !== u.uid) return;
+      if(p.new.status === "completed" && p.old.status !== "completed") pushNotif(T("✅ Deposit add ho gaya!"), "Rs " + Number(p.new.amount||0).toLocaleString() + T(" aapke deposit balance me add ho gaya. Ab notes khareedein! ⚡"), "wallet");
+      if((p.new.status === "rejected" || p.new.status === "failed") && p.old.status !== p.new.status) pushNotif(T("❌ Deposit reject"), T("Aapki deposit verify nahi ho saki. Support se rabta karein."), "wallet");
+      if(currentView === "admin") adminDash(currentUser(), "deposits");
     })
     .on("postgres_changes", {event:"UPDATE", schema:"public", table:"orders"}, function(p){
       const u = currentUser(); if(!u) return;

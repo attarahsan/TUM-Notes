@@ -23,18 +23,21 @@ serve(async (req) => {
     try { body = await req.json(); } catch { /* fall through to 403 */ }
     if (!WA_SECRET || body.admin_secret !== WA_SECRET) return J({ error: "forbidden" }, 403);
 
-    const [orders, withdrawals, notes] = await Promise.all([
+    const [orders, withdrawals, notes, deposits] = await Promise.all([
       supa.from("orders").select("order_id,buyer_id,seller_id,note_id,amount,payment_proof_url,timestamp")
         .eq("status", "pending").order("timestamp", { ascending: false }).limit(20),
       supa.from("withdrawals").select("request_id,seller_id,seller_name,amount,method,account_title,account_number,easypaisa_number,timestamp")
         .eq("status", "pending").order("timestamp", { ascending: false }).limit(20),
       supa.from("notes").select("note_id,seller_id,seller_name,title,subject,price,file_url,created_at")
         .eq("status", "pending").order("created_at", { ascending: false }).limit(20),
+      supa.from("deposits").select("deposit_id,user_id,user_name,user_email,amount,method,payment_proof_url,created_at")
+        .eq("status", "pending").order("created_at", { ascending: false }).limit(20),
     ]);
     return J({
       orders: orders.data || [],
       withdrawals: withdrawals.data || [],
       notes: notes.data || [],
+      deposits: deposits.data || [],
     });
   } catch (e) {
     return J({ error: String((e as Error)?.message || e) }, 500);
