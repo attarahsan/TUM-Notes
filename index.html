@@ -346,6 +346,26 @@ body.light .chattabs{background:rgba(255,253,248,.97)}
 .adbody{background:var(--card);border:1px dashed rgba(212,175,55,.35);border-radius:14px;min-height:96px;display:flex;align-items:center;justify-content:center;padding:20px}
 .adplaceholder{color:var(--muted);font-size:13px}
 .adslot .adsbygoogle{display:block;min-height:90px}
+/* ===== Customer Care / Support chat ===== */
+#supportFab{position:fixed;right:16px;bottom:86px;z-index:95;width:56px;height:56px;border-radius:50%;border:1px solid rgba(232,200,116,.5);background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a;font-size:24px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
+#supportFab .sfbadge{position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;line-height:20px;text-align:center;padding:0 5px}
+#supportModal{position:fixed;z-index:120;right:12px;bottom:152px;width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 200px));background:var(--card);border:1px solid rgba(232,200,116,.35);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden}
+#supportModal.open{display:flex}
+.sup-head{background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a;padding:12px 14px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.sup-head button{background:none;border:none;font-size:18px;cursor:pointer;color:#1a150a}
+.sup-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.sup-msg{max-width:82%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.45;word-wrap:break-word}
+.sup-msg.user{align-self:flex-end;background:linear-gradient(135deg,#e9c85a,#c9a227);color:#1a150a;border-bottom-right-radius:4px}
+.sup-msg.admin{align-self:flex-start;background:var(--line);color:var(--ink);border-bottom-left-radius:4px}
+.sup-time{font-size:10.5px;color:var(--muted);margin-top:3px}
+.sup-foot{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+.sup-foot input{flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit;font-size:14px}
+.sup-foot button{padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#e9c85a,#b8941f);color:#1a150a;font-weight:800;cursor:pointer;font-family:inherit}
+.sup-thread{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--bg)}
+.sup-thread:hover{border-color:rgba(232,200,116,.5)}
+.sup-thread .nm{font-weight:700;font-size:14px}
+.sup-thread .pv{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.sup-unread{background:#dc2626;color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;line-height:20px;text-align:center;padding:0 6px}
 </style>
 </head>
 <body>
@@ -390,6 +410,12 @@ body.light .chattabs{background:rgba(255,253,248,.97)}
 <div id="sideOverlay" onclick="toggleSidebar(true)"></div>
 <main id="app"><div class="loading">Loading…</div></main>
 <div id="toasts"></div>
+<button id="supportFab" onclick="toggleSupport(true)" title="Customer Care">🎧<span class="sfbadge" id="supportBadge" style="display:none">0</span></button>
+<div id="supportModal">
+  <div class="sup-head"><span>🎧 Customer Care</span><button onclick="toggleSupport(false)">✕</button></div>
+  <div class="sup-body" id="supportBody"><div class="loading">Loading…</div></div>
+  <div class="sup-foot"><input id="supportInput" placeholder="Apna sawal likhein…" maxlength="2000" onkeydown="if(event.key==='Enter')sendSupportMsg()"><button onclick="sendSupportMsg()">➤</button></div>
+</div>
 <footer class="site"><div class="in">
   <div><b style="color:var(--ink)">TUM Notes Hub</b> — the student marketplace for study notes.</div>
   <div>Times University Multan · Developed by <b style="color:var(--ink)">Suhrani Developers</b> · Ahsan Abid</div>
@@ -775,6 +801,8 @@ function updateUserBox(){
   if(wishB) wishB.style.display = u ? "" : "none";
   if(dashB) dashB.style.display = u ? "" : "none";
   if(notifB){ notifB.style.display = u ? "" : "none"; if(u) loadNotifCount(); }
+  updateSupportFab();
+  if(u && !u.is_admin) checkSupportUnread();
   if(!box) return;
   box.innerHTML = u
     ? '<span style="font-size:13.5px;font-weight:700">👤 '+esc(u.name||"User")+'</span><button class="btn small ghost" onclick="logout()">Logout</button>'
@@ -1426,6 +1454,148 @@ VIEWS.chat = async function(arg){
     openPrivateChat(arg.with, arg.name || "User");
   }
 };
+
+/* ================= CUSTOMER CARE / SUPPORT CHAT ================= */
+let supportThreadId = null, supportSub = null, supportOpen = false;
+function updateSupportFab(){
+  const fab = document.getElementById("supportFab");
+  const me = currentUser();
+  if(fab) fab.style.display = (me && !me.is_admin) ? "flex" : "none";
+}
+function toggleSupport(open){
+  supportOpen = open;
+  document.getElementById("supportModal").classList.toggle("open", open);
+  if(open){ openSupportChat(); } else { stopSupportSub(); }
+}
+async function openSupportChat(){
+  const me = currentUser(); if(!me) return;
+  const body = document.getElementById("supportBody");
+  body.innerHTML = '<div class="loading">Loading…</div>';
+  try{
+    const {data: tid, error} = await db.rpc("my_support_thread");
+    if(error) throw error;
+    supportThreadId = tid;
+    await loadSupportMsgs();
+    subscribeSupport();
+  }catch(e){ body.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+}
+async function loadSupportMsgs(){
+  const body = document.getElementById("supportBody"); if(!body || !supportThreadId) return;
+  const {data: msgs, error} = await db.from("support_messages").select("*").eq("thread_id", supportThreadId).order("created_at",{ascending:true});
+  if(error){ body.innerHTML = '<div class="err">'+esc(error.message)+'</div>'; return; }
+  body.innerHTML = msgs.length ? msgs.map(function(m){
+    return '<div class="sup-msg '+m.sender+'">'+esc(m.text)+'<div class="sup-time">'+fmtDate(m.created_at)+(m.sender==="admin"?" · Support":"")+'</div></div>';
+  }).join("") : '<div class="empty">👋 Assalam-o-Alaikum! Koi sawal ya issue hye? Yahan likhein — hamari team jawab degi.</div>';
+  body.scrollTop = body.scrollHeight;
+  // mark admin messages read
+  const unread = msgs.filter(function(m){ return m.sender === "admin" && !m.is_read; });
+  if(unread.length) await db.from("support_messages").update({is_read:true}).in("id", unread.map(function(m){return m.id;}));
+  updateSupportBadge(0);
+}
+function subscribeSupport(){
+  stopSupportSub();
+  if(!supportThreadId) return;
+  supportSub = db.channel("support-"+supportThreadId)
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"support_messages",filter:"thread_id=eq."+supportThreadId}, function(){ loadSupportMsgs(); })
+    .subscribe();
+}
+function stopSupportSub(){ if(supportSub){ try{supportSub.unsubscribe();}catch(e){} supportSub = null; } }
+async function sendSupportMsg(){
+  const inp = document.getElementById("supportInput");
+  const txt = inp.value.trim(); if(!txt || !supportThreadId) return;
+  inp.value = "";
+  try{
+    const {error} = await db.rpc("send_support_message",{p_thread_id: supportThreadId, p_text: txt});
+    if(error) throw error;
+    loadSupportMsgs();
+  }catch(e){ toast(e.message); }
+}
+function updateSupportBadge(n){
+  const b = document.getElementById("supportBadge");
+  if(b){ b.style.display = n > 0 ? "" : "none"; b.textContent = n > 9 ? "9+" : n; }
+}
+// background check for unread admin replies (for the badge)
+async function checkSupportUnread(){
+  const me = currentUser(); if(!me || me.is_admin) return;
+  try{
+    const {data: tid} = await db.rpc("my_support_thread");
+    if(!tid) return;
+    const {count} = await db.from("support_messages").select("id",{count:"exact",head:true}).eq("thread_id",tid).eq("sender","admin").eq("is_read",false);
+    updateSupportBadge(count || 0);
+  }catch(e){}
+}
+/* ================= ADMIN: SUPPORT TAB ================= */
+let adminSupportTid = null, adminSupportSub = null;
+async function adminSupportView(s){
+  app.innerHTML = adminHead(s, "Customer care — users ke sawal yahan aate hain. Jawab dein, issue solve ho to close kar dein.") + adminTabs("support") +
+    '<div style="display:flex;gap:14px;flex-wrap:wrap"><div id="supThreadList" style="flex:1;min-width:260px;max-width:360px"></div>' +
+    '<div id="supChatPane" style="flex:2;min-width:300px"><div class="empty">👈 Koi conversation select karein</div></div></div>';
+  loadAdminSupportThreads();
+  subscribeAdminSupportList();
+}
+function subscribeAdminSupportList(){
+  if(adminSupportSub){ try{adminSupportSub.unsubscribe();}catch(e){} }
+  adminSupportSub = db.channel("admin-support-list")
+    .on("postgres_changes",{event:"*",schema:"public",table:"support_messages"}, function(){ loadAdminSupportThreads(); if(adminSupportTid) loadAdminSupportMsgs(adminSupportTid); })
+    .subscribe();
+}
+async function loadAdminSupportThreads(){
+  const box = document.getElementById("supThreadList"); if(!box) return;
+  try{
+    const {data: threads, error} = await db.rpc("admin_support_threads");
+    if(error) throw error;
+    box.innerHTML = threads.length ? threads.map(function(t){
+      return '<div class="sup-thread'+(adminSupportTid===t.id?'\" style="border-color:#e9c85a':'')+'" onclick="openAdminSupportThread('+t.id+')">' +
+        '<div><div class="nm">'+esc(t.user_name||t.user_email||"User")+(t.status==="closed"?' <span class="badge">closed</span>':'')+'</div>' +
+        '<div class="pv">'+esc(t.last_text||"—")+'</div></div>' +
+        (t.unread_count > 0 ? '<span class="sup-unread">'+t.unread_count+'</span>' : '') + '</div>';
+    }).join("") : '<div class="empty">Koi support message nahi.</div>';
+  }catch(e){ box.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+}
+async function openAdminSupportThread(tid){
+  adminSupportTid = tid;
+  loadAdminSupportThreads();
+  loadAdminSupportMsgs(tid);
+}
+async function loadAdminSupportMsgs(tid){
+  const pane = document.getElementById("supChatPane"); if(!pane) return;
+  pane.innerHTML = '<div class="loading">Loading…</div>';
+  try{
+    const {data: msgs, error} = await db.rpc("admin_support_messages",{p_thread_id: tid});
+    if(error) throw error;
+    pane.innerHTML = '<div class="sup-body" id="adminSupBody" style="border:1px solid var(--line);border-radius:14px;min-height:280px;max-height:420px">' +
+      (msgs.length ? msgs.map(function(m){
+        return '<div class="sup-msg '+m.sender+'">'+esc(m.text)+'<div class="sup-time">'+fmtDate(m.created_at)+'</div></div>';
+      }).join("") : '<div class="empty">Koi message nahi.</div>') + '</div>' +
+      '<div class="sup-foot" style="border:none;padding:10px 0"><input id="adminSupInput" placeholder="Jawab likhein…" maxlength="2000" onkeydown="if(event.key===\'Enter\')adminSupportSend()">' +
+      '<button onclick="adminSupportSend()">➤</button> ' +
+      '<button class="btn small ghost" onclick="adminSupportToggleStatus()">Close/Reopen</button></div>';
+    const b = document.getElementById("adminSupBody"); b.scrollTop = b.scrollHeight;
+    loadAdminSupportThreads();
+  }catch(e){ pane.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+}
+async function adminSupportSend(){
+  const inp = document.getElementById("adminSupInput");
+  const txt = inp.value.trim(); if(!txt || !adminSupportTid) return;
+  inp.value = "";
+  try{
+    const {error} = await db.rpc("admin_support_reply",{p_thread_id: adminSupportTid, p_text: txt});
+    if(error) throw error;
+    loadAdminSupportMsgs(adminSupportTid);
+  }catch(e){ toast(e.message); }
+}
+async function adminSupportToggleStatus(){
+  if(!adminSupportTid) return;
+  try{
+    const {data: threads} = await db.rpc("admin_support_threads");
+    const t = (threads||[]).find(function(x){return x.id===adminSupportTid;});
+    const ns = t && t.status === "closed" ? "open" : "closed";
+    const {error} = await db.rpc("admin_support_status",{p_thread_id: adminSupportTid, p_status: ns});
+    if(error) throw error;
+    toast(ns === "closed" ? "Conversation closed" : "Conversation reopened");
+    loadAdminSupportThreads();
+  }catch(e){ toast(e.message); }
+}
 
 function showChatTab(which){
   ["group","private","groups"].forEach(function(t){
@@ -2379,7 +2549,7 @@ VIEWS.admin = function(){
 };
 function adminTabs(active){
   const t = function(k, label){ return '<button class="'+(active===k?"active":"")+'" onclick="adminDash(currentUser(),\''+k+'\')">'+label+'</button>'; };
-  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("deposits","💳 Deposits") + t("subs","💎 Plans") + t("activity","📊 Activity") + t("chat","💬 Chat") + t("security","🔐 Security") + '</div>';
+  return '<div class="tabs">' + t("pending","Pending") + t("reported","Reported") + t("all","All notes") + t("orders","💰 Orders") + t("withdrawals","🏧 Withdrawals") + t("deposits","💳 Deposits") + t("subs","💎 Plans") + t("activity","📊 Activity") + t("chat","💬 Chat") + t("support","🎧 Support") + t("security","🔐 Security") + '</div>';
 }
 function adminHead(s, note){
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">' +
@@ -2395,6 +2565,7 @@ async function adminDash(s, tab){
   if(tab === "subs") return adminSubsView(s);
   if(tab === "activity") return adminActivityView(s);
   if(tab === "chat") return adminChatView(s);
+  if(tab === "support") return adminSupportView(s);
   if(tab === "security") return adminSecurityView(s);
   try{
     let q = db.from("notes").select("*").order("created_at",{ascending:false}).limit(200);
@@ -2916,6 +3087,7 @@ function notifGo(link){
   else if(link.indexOf("groupinvite:") === 0){ go("chat", {tab:"groups"}); }
   else if(link === "wallet"){ go("wallet"); }
   else if(link === "dashboard"){ go("dashboard"); }
+  else if(link === "support:open"){ toggleSupport(true); }
 }
 VIEWS.notifications = async function(){
   const u = requireLogin(); if(!u) return;
