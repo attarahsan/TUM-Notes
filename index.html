@@ -2430,12 +2430,15 @@ async function submitWithdraw(ev){
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
   }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 }
+let _depositInFlight = false;
 async function startDeposit(method){
   const me = currentUser(); if(!me) return;
+  if(_depositInFlight) return; // ignore double-clicks: one deposit at a time
+  _depositInFlight = true;
   const amtEl = document.getElementById("d_amount");
   const msg = document.getElementById("d_msg");
   const amount = Math.floor(Number(amtEl.value));
-  if(!amount || amount < 50){ msg.innerHTML = '<div class="notice warn">'+T("Kam az kam Rs 50 deposit karein.")+'</div>'; return; }
+  if(!amount || amount < 50){ msg.innerHTML = '<div class="notice warn">'+T("Kam az kam Rs 50 deposit karein.")+'</div>'; _depositInFlight = false; return; }
   msg.innerHTML = "Processing…";
   try{
     if(method === "manual"){
@@ -2472,6 +2475,7 @@ async function startDeposit(method){
     amtEl.value = "";
     setTimeout(function(){ VIEWS.wallet(); }, 1400);
   }catch(e){ msg.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ _depositInFlight = false; }
 }
 // deposit amount ko manual method ke step-1 me live dikhao
 document.addEventListener("input", function(e){
