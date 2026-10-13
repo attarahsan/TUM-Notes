@@ -61,22 +61,24 @@ serve(async (req) => {
     if (dErr) return J({ error: dErr.message }, 500);
     const depositId = (dep as { deposit_id: number }).deposit_id;
 
-    // CashMaal hosted payment page. Confirm exact params from merchant API docs
-    // once the merchant account is created; fields below follow the IPN doc's
-    // naming (web_id, order_id, Amount).
+    // CashMaal Receive Money API (https://www.cashmaal.com/api):
+    // POST https://cmaal.com/Pay/ with web_id, order_id, amount, currency,
+    // client_email, succes_url (note CashMaal's spelling), cancel_url, addi_info.
     let payment_url: string | null = null;
     let payment_form: Record<string, string> | null = null;
     if (CASHMAAL_WEB_ID) {
       payment_form = {
         web_id: CASHMAAL_WEB_ID,
         order_id: String(depositId),
-        Amount: String(amount),
+        amount: String(amount),
         currency: "PKR",
         client_email: user.email || "",
-        addi_info: "TUM Notes deposit #" + depositId,
-        callback_url: APP_URL + "/#wallet",
+        succes_url: APP_URL + "/#wallet?deposit=success",
+        cancel_url: APP_URL + "/#wallet?deposit=cancelled",
+        addi_info: ("TUM Notes deposit #" + depositId).slice(0, 80),
+        pay_method: "",
       };
-      payment_url = "https://www.cashmaal.com/pay";
+      payment_url = "https://cmaal.com/Pay/";
     }
 
     return J({ ok: true, deposit_id: depositId, amount, method: "cashmaal",
