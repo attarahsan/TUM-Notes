@@ -67,9 +67,13 @@ serve(async (req) => {
     let payment_url: string | null = null;
     let payment_form: Record<string, string> | null = null;
     if (CASHMAAL_WEB_ID) {
+      // order_id must be unique per CashMaal submission — suffix with timestamp
+      // so retries/back-button resubmits don't hit "Order Id Already Used".
+      const cashmaalOrderId = depositId + "-" + Date.now();
+      await supa.from("deposits").update({ cashmaal_order_id: cashmaalOrderId }).eq("deposit_id", depositId);
       payment_form = {
         web_id: CASHMAAL_WEB_ID,
-        order_id: String(depositId),
+        order_id: cashmaalOrderId,
         amount: String(amount),
         currency: "PKR",
         client_email: user.email || "",

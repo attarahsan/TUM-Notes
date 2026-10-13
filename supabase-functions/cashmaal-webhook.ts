@@ -49,7 +49,8 @@ serve(async (req) => {
 
     // --- parse real IPN fields ---
     const status = String(body.status || "");
-    const depositId = Number(body.order_id);
+    // order_id is "{depositId}-{timestamp}" — extract the deposit id prefix
+    const depositId = Number(String(body.order_id || "").split("-")[0]);
     const amount = Number(body.Amount);
     const txnId = String(body.CM_TID || "");
     const currency = String(body.currency || "").toUpperCase();
