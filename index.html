@@ -414,7 +414,7 @@ body.light .chattabs{background:rgba(255,253,248,.97)}
 <div id="supportModal">
   <div class="sup-head"><span>🎧 Customer Care</span><button onclick="toggleSupport(false)">✕</button></div>
   <div class="sup-body" id="supportBody"><div class="loading">Loading…</div></div>
-  <div class="sup-foot"><input id="supportInput" placeholder="Apna sawal likhein…" maxlength="2000" onkeydown="if(event.key==='Enter')sendSupportMsg()"><button onclick="sendSupportMsg()">➤</button></div>
+  <div class="sup-foot"><input id="supportInput" data-i18n-ph="Apna sawal likhein…" placeholder="Apna sawal likhein…" maxlength="2000" onkeydown="if(event.key==='Enter')sendSupportMsg()"><button onclick="sendSupportMsg()">➤</button></div>
 </div>
 <footer class="site"><div class="in">
   <div><b style="color:var(--ink)">TUM Notes Hub</b> — the student marketplace for study notes.</div>
@@ -441,7 +441,7 @@ function adSlot(slotId){
       '<scr'+'ipt>(adsbygoogle = window.adsbygoogle || []).push({});</scr'+'ipt></div>';
   }
   return '<div class="adslot"><div class="adlabel">Advertisement</div>' +
-    '<div class="adbody"><div class="adplaceholder">Ad space — AdSense approve hone ke baad yahan ad aayega</div></div></div>';
+    '<div class="adbody"><div class="adplaceholder">'+T("Ad space — AdSense approve hone ke baad yahan ad aayega")+'</div></div></div>';
 }
 const SUPABASE_KEY = "sb_publishable_srRWNgXit_vUS9V2CXk39g_yVolDTNe";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -627,6 +627,95 @@ const I18N_EN = {
   "Join kiya": "Joined",
   "Unki sales": "Their sales",
   "Abhi aapki team me koi nahi — apna referral link share karo aur team banao! 👥": "No team members yet — share your referral link and build your team! 👥",
+  "Method 1: Deposit balance": "Method 1: Deposit balance",
+  "Available": "Available",
+  "Price": "Price",
+  "Foran unlock — na screenshot, na admin approval.": "Instant unlock — no screenshot, no admin approval.",
+  "Buy now — Rs ": "Buy now — Rs ",
+  "Balance kam hai.": "Insufficient balance.",
+  "Deposit karein": "Make a deposit",
+  "Method 2: Easypaisa payment": "Method 2: Easypaisa payment",
+  "Admin verify karke approve karega, phir note unlock ho jayega.": "Admin will verify and approve, then the note will unlock.",
+  "Apna method chunein": "Choose your method",
+  "Rs ": "Rs ",
+  " deposit balance se khareedna hai? Ye foran unlock ho jayega.": " buy with deposit balance? It will unlock instantly.",
+  "Note unlock ho gaya!": "Note unlocked!",
+  "Edit message": "Edit message",
+  "(edited)": "(edited)",
+  "Chats load nahi ho sakein: ": "Couldn't load chats: ",
+  "Save": "Save",
+  "Cancel": "Cancel",
+  "Message khaali nahi ho sakta": "Message cannot be empty",
+  "Message bohat lamba hai (max 500)": "Message is too long (max 500)",
+  "Message edit ho gaya ✅": "Message edited ✅",
+  "Edit failed: ": "Edit failed: ",
+  "Mic access nahi mila: ": "Couldn't access microphone: ",
+  "Cancel recording — bhejna nahi": "Cancel recording — don't send",
+  "Recording cancel ho gayi": "Recording cancelled",
+  "Voice upload failed: ": "Voice upload failed: ",
+  "Add members (usernames, comma se alag)": "Add members (usernames, separated by commas)",
+  "Send invites": "Send invites",
+  "Invite jayega — approve karne par hi wo add hoga.": "Invite will be sent — they'll be added only after approving.",
+  "Pehle koi username likhein.": "Please enter a username first.",
+  "Sending invites…": "Sending invites…",
+  "Backend update pending hai — thodi der baad try karein.": "Backend update is pending — please try again later.",
+  "Invites bhej diye": "Invites sent",
+  "Notes khareedne ke liye": "For buying notes",
+  "Sirf withdraw ke liye": "For withdrawal only",
+  "Deposit": "Deposit",
+  "Ye balance <b>sirf notes khareedne</b> ke liye istemal hoga (withdraw nahi ho sakta).": "This balance can <b>only be used to buy notes</b> (cannot be withdrawn).",
+  "Amount (Rs) *": "Amount (Rs) *",
+  "Method 1: CashMaal (foran)": "Method 1: CashMaal (instant)",
+  "JazzCash, Easypaisa, NayaPay, SadaPay, UPaisa, bank, Raast se foran deposit — balance turant add ho jayega.": "Instant deposit via JazzCash, Easypaisa, NayaPay, SadaPay, UPaisa, bank, Raast — balance added immediately.",
+  "Deposit via CashMaal": "Deposit via CashMaal",
+  "⏳ CashMaal connect ho raha hai — tab tak Method 2 istemal karein.": "⏳ Connecting CashMaal — use Method 2 until then.",
+  "Method 2: Easypaisa (manual)": "Method 2: Easypaisa (manual)",
+  "Payment screenshot *": "Payment screenshot *",
+  "Screenshot bhejein — manual deposit": "Send screenshot — manual deposit",
+  "Deposit history": "Deposit history",
+  "Amount": "Amount",
+  "Method": "Method",
+  "Date": "Date",
+  "Status": "Status",
+  "Koi deposit nahi hui abhi.": "No deposits yet.",
+  ". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b> <b>Earnings balance</b> se withdraw hoga (deposit balance se nahi).": ". The money will be sent to your chosen method after admin approval. <b>Withdrawal password is required.</b> Withdrawal will be from <b>Earnings balance</b> (not deposit balance).",
+  "Kam az kam Rs 50 deposit karein.": "Deposit at least Rs 50.",
+  "Payment screenshot lagayein.": "Please attach the payment screenshot.",
+  "Screenshot upload ho raha hye…": "Uploading screenshot…",
+  "Screenshot mil gaya! Admin verify karke Rs ": "Screenshot received! Admin will verify and add Rs ",
+  " aapke deposit balance me add karega.": " to your deposit balance.",
+  "Deposit request #": "Deposit request #",
+  " ban gayi.": " created.",
+  "Deposits — manual walon ka screenshot verify karke approve karein (balance foran add ho jayega). CashMaal wale automatic hote hain.": "Deposits — verify screenshots of manual ones and approve (balance is added instantly). CashMaal ones are automatic.",
+  "User": "User",
+  "CashMaal txn": "CashMaal txn",
+  "Actions": "Actions",
+  "✅ Deposit add ho gaya!": "✅ Deposit added!",
+  " aapke deposit balance me add ho gaya. Ab notes khareedein! ⚡": " added to your deposit balance. Now buy notes! ⚡",
+  "❌ Deposit reject": "❌ Deposit rejected",
+  "Aapki deposit verify nahi ho saki. Support se rabta karein.": "Your deposit could not be verified. Please contact support.",
+  "Ad space — AdSense approve hone ke baad yahan ad aayega": "Ad space — ad will appear here after AdSense approval",
+  "Chat me aap <b>username</b> se nazar aayenge — Gmail wale naam se nahi. Yehi naam group invites ke liye bhi use hoga.": "You will appear in chat by your <b>username</b> — not your Gmail name. This name will also be used for group invites.",
+  "Yahan sab apne <b>username</b> se likhte hain. Notes request karein, e.g. <i>\"Mujhe Physics Ch.4 ke neat notes chahiye\"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.": "Everyone writes here by their <b>username</b>. Request notes, e.g. <i>\"I need neat notes for Physics Ch.4\"</i> — tap someone's name to chat <b>privately</b> with them.",
+  "⚠️ Galat zaban wale messages auto-delete ho jate hain.": "⚠️ Messages with abusive language are auto-deleted.",
+  "👋 Assalam-o-Alaikum! Koi sawal ya issue hye? Yahan likhein — hamari team jawab degi.": "👋 Assalam-o-Alaikum! Any question or issue? Write here — our team will respond.",
+  "Customer care — users ke sawal yahan aate hain. Jawab dein, issue solve ho to close kar dein.": "Customer care — user questions arrive here. Reply, and close once the issue is solved.",
+  "👈 Koi conversation select karein": "👈 Select a conversation",
+  "Koi support message nahi.": "No support messages.",
+  "Jawab likhein…": "Write a reply…",
+  " kisi note ke seller se <b>💬 Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.": " — tap <b>💬 Chat with seller</b> on any note's seller, or tap someone's name in a group.",
+  "📎 Note attach karein": "📎 Attach a note",
+  "Group ka naya naam:": "New group name:",
+  " bhejein": " (send)",
+  " Screenshot lagayein — admin verify karke deposit balance me add karega.": " Attach a screenshot — admin will verify and add to deposit balance.",
+  "Account title (naam) *": "Account title (name) *",
+  "Please enter the account title (naam).": "Please enter the account title (name).",
+  "👤 Guest (login nahi kiya)": "👤 Guest (not logged in)",
+  "Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.": "Group chat moderation — <b>delete</b> abusive messages. Everyone appears by their real name.",
+  "Naam 2 se 40 characters ka ho": "Name must be 2 to 40 characters",
+  "Group ka naam change ho gaya ✓": "Group name changed ✓",
+  "ban gayi.": "created.",
+  "👪 Groups": "👪 Groups",
 };
 function T(s){
   if(APP_LANG === "en" && typeof s === "string" && Object.prototype.hasOwnProperty.call(I18N_EN, s)) return I18N_EN[s];
@@ -641,6 +730,12 @@ function paintLangToggle(){
   const ur = document.getElementById("langUr"), en = document.getElementById("langEn");
   if(ur) ur.classList.toggle("on", APP_LANG === "ur");
   if(en) en.classList.toggle("on", APP_LANG === "en");
+}
+function paintStaticI18n(){
+  try{
+    document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = T(el.getAttribute("data-i18n")); });
+    document.querySelectorAll("[data-i18n-ph]").forEach(function(el){ el.placeholder = T(el.getAttribute("data-i18n-ph")); });
+  }catch(e){}
 }
 function myCommission(){ const me = currentUser(); let p = (me && me.plan) || "free"; if(me && me.plan_expires && Number(me.plan_expires) < Date.now() && p !== "free") p = "free"; return {plan: p, rate: commissionRate(p), earnPct: Math.round((1 - commissionRate(p)) * 100)}; }
 const WITHDRAW_METHODS = ["Easypaisa","JazzCash","Meezan Bank","HBL","UBL"];
@@ -1373,7 +1468,7 @@ function renderUsernameSetup(){
     '<div class="card" style="max-width:440px;margin:30px auto;text-align:center;padding:30px 24px">' +
     '<div style="font-size:44px;margin-bottom:10px">\uD83D\uDC64</div>' +
     '<h2 style="margin-bottom:8px">'+T("Apna username set karein")+'</h2>' +
-    '<div class="sub" style="margin-bottom:18px">Chat me aap <b>username</b> se nazar aayenge — Gmail wale naam se nahi. Yehi naam group invites ke liye bhi use hoga.</div>' +
+    '<div class="sub" style="margin-bottom:18px">'+T("Chat me aap <b>username</b> se nazar aayenge — Gmail wale naam se nahi. Yehi naam group invites ke liye bhi use hoga.")+'</div>' +
     '<form onsubmit="saveUsername(event)"><div class="field" style="text-align:left"><label>'+T("Username (3-20 characters: a-z, 0-9, _)")+'</label>' +
     '<input id="unInput" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="e.g. ahmed_notes" autocomplete="off"></div>' +
     '<div id="unMsg"></div><button class="btn" type="submit" style="width:100%">'+T("Save & open chat")+'</button></form></div>';
@@ -1424,12 +1519,12 @@ VIEWS.chat = async function(arg){
     '<button id="tabPrivate" onclick="showChatTab(\'private\')">'+T("\uD83D\uDCAC Private")+' <span id="pmBadge"></span></button>' +
     '<button id="tabGroups" onclick="showChatTab(\'groups\')">'+T("\uD83D\uDC6A Groups")+' <span id="grpBadge"></span></button></div>' +
     '<div id="chatGroupPane">' +
-      '<div class="sub" style="margin-bottom:12px">Yahan sab apne <b>username</b> se likhte hain. Notes request karein, e.g. <i>"Mujhe Physics Ch.4 ke neat notes chahiye"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.</div>' +
+      '<div class="sub" style="margin-bottom:12px">'+T("Yahan sab apne <b>username</b> se likhte hain. Notes request karein, e.g. <i>\"Mujhe Physics Ch.4 ke neat notes chahiye\"</i> — kisi ke naam par tap karke us se <b>private</b> baat bhi kar sakte hain.")+'</div>' +
       '<div id="chatBox" class="chatbox"><div class="loading">Loading messages…</div></div>' +
       '<form class="chatform" onsubmit="sendChatMsg(event)"><input id="chatInp" maxlength="500" placeholder="'+T("Apna message likhein…")+'" autocomplete="off">' +
       '<button type="button" class="btn ghost" id="voiceBtnGroup" onclick="toggleVoiceRecording(\'group\')" title="Voice message">\uD83C\uDFA4</button>' +
       '<button class="btn" type="submit">Send</button></form>' +
-      '<div class="sub" style="margin-top:8px">\u26A0\uFE0F Galat zaban wale messages auto-delete ho jate hain.</div>' +
+      '<div class="sub" style="margin-top:8px">'+T("\u26A0\uFE0F Galat zaban wale messages auto-delete ho jate hain.")+'</div>' +
     '</div>' +
     '<div id="chatPrivatePane" style="display:none">' +
       '<div id="convList"><div class="loading">Loading chats…</div></div>' +
@@ -1496,7 +1591,7 @@ async function loadSupportMsgs(){
   if(error){ body.innerHTML = '<div class="err">'+esc(error.message)+'</div>'; return; }
   body.innerHTML = msgs.length ? msgs.map(function(m){
     return '<div class="sup-msg '+m.sender+'">'+esc(m.text)+'<div class="sup-time">'+fmtDate(m.created_at)+(m.sender==="admin"?" · Support":"")+'</div></div>';
-  }).join("") : '<div class="empty">👋 Assalam-o-Alaikum! Koi sawal ya issue hye? Yahan likhein — hamari team jawab degi.</div>';
+  }).join("") : '<div class="empty">'+T("👋 Assalam-o-Alaikum! Koi sawal ya issue hye? Yahan likhein — hamari team jawab degi.")+'</div>';
   body.scrollTop = body.scrollHeight;
   // mark admin messages read
   const unread = msgs.filter(function(m){ return m.sender === "admin" && !m.is_read; });
@@ -1538,9 +1633,9 @@ async function checkSupportUnread(){
 /* ================= ADMIN: SUPPORT TAB ================= */
 let adminSupportTid = null, adminSupportSub = null;
 async function adminSupportView(s){
-  app.innerHTML = adminHead(s, "Customer care — users ke sawal yahan aate hain. Jawab dein, issue solve ho to close kar dein.") + adminTabs("support") +
+  app.innerHTML = adminHead(s, T("Customer care — users ke sawal yahan aate hain. Jawab dein, issue solve ho to close kar dein.")) + adminTabs("support") +
     '<div style="display:flex;gap:14px;flex-wrap:wrap"><div id="supThreadList" style="flex:1;min-width:260px;max-width:360px"></div>' +
-    '<div id="supChatPane" style="flex:2;min-width:300px"><div class="empty">👈 Koi conversation select karein</div></div></div>';
+    '<div id="supChatPane" style="flex:2;min-width:300px"><div class="empty">'+T("👈 Koi conversation select karein")+'</div></div></div>';
   loadAdminSupportThreads();
   subscribeAdminSupportList();
 }
@@ -1560,7 +1655,7 @@ async function loadAdminSupportThreads(){
         '<div><div class="nm">'+esc(t.user_name||t.user_email||"User")+(t.status==="closed"?' <span class="badge">closed</span>':'')+'</div>' +
         '<div class="pv">'+esc(t.last_text||"—")+'</div></div>' +
         (t.unread_count > 0 ? '<span class="sup-unread">'+t.unread_count+'</span>' : '') + '</div>';
-    }).join("") : '<div class="empty">Koi support message nahi.</div>';
+    }).join("") : '<div class="empty">'+T("Koi support message nahi.")+'</div>';
   }catch(e){ box.innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 }
 async function openAdminSupportThread(tid){
@@ -1577,8 +1672,8 @@ async function loadAdminSupportMsgs(tid){
     pane.innerHTML = '<div class="sup-body" id="adminSupBody" style="border:1px solid var(--line);border-radius:14px;min-height:280px;max-height:420px">' +
       (msgs.length ? msgs.map(function(m){
         return '<div class="sup-msg '+m.sender+'">'+esc(m.text)+'<div class="sup-time">'+fmtDate(m.created_at)+'</div></div>';
-      }).join("") : '<div class="empty">Koi message nahi.</div>') + '</div>' +
-      '<div class="sup-foot" style="border:none;padding:10px 0"><input id="adminSupInput" placeholder="Jawab likhein…" maxlength="2000" onkeydown="if(event.key===\'Enter\')adminSupportSend()">' +
+      }).join("") : '<div class="empty">'+T("Koi message nahi.")+'</div>') + '</div>' +
+      '<div class="sup-foot" style="border:none;padding:10px 0"><input id="adminSupInput" placeholder="'+T("Jawab likhein…")+'" maxlength="2000" onkeydown="if(event.key===\'Enter\')adminSupportSend()">' +
       '<button onclick="adminSupportSend()">➤</button> ' +
       '<button class="btn small ghost" onclick="adminSupportToggleStatus()">Close/Reopen</button></div>';
     const b = document.getElementById("adminSupBody"); b.scrollTop = b.scrollHeight;
@@ -1673,7 +1768,7 @@ async function loadConversations(){
     const badge = document.getElementById("pmBadge");
     if(badge) badge.innerHTML = totalUnread ? '<span class="unread">' + totalUnread + '</span>' : '';
     if(!convs.length){
-      list.innerHTML = '<div class="empty">'+T("Koi private chat nahi —")+' kisi note ke seller se <b>\uD83D\uDCAC Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.</div>';
+      list.innerHTML = '<div class="empty">'+T("Koi private chat nahi —")+T(" kisi note ke seller se <b>\uD83D\uDCAC Chat with seller</b> dabayein, ya group me kisi ke naam par tap karein.")+'</div>';
       return;
     }
     list.innerHTML = convs.map(function(c){
@@ -1930,7 +2025,7 @@ function openNotePicker(sendType){
   ov.id = "notePickerOv";
   ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px";
   ov.innerHTML = '<div class="card" style="max-width:480px;width:100%;max-height:80vh;overflow-y:auto">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>📎 Note attach karein</h3>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>'+T("📎 Note attach karein")+'</h3>' +
     '<button class="btn ghost" onclick="document.getElementById(\'notePickerOv\').remove()">✕</button></div>' +
     '<div class="sub" style="margin-bottom:12px">Apne notes me se chunein — 🔒 private notes sirf is chat me nazar aayenge.</div>' +
     '<div id="npList"><div class="loading">Loading…</div></div></div>';
@@ -2147,17 +2242,17 @@ async function showGroupMembers(){
 }
 async function renameGroup(){
   if(!groupId) return;
-  const nn = prompt("Group ka naya naam:", groupName || "");
+  const nn = prompt(T("Group ka naya naam:"), groupName || "");
   if(nn === null) return;
   const t = (nn || "").trim();
-  if(t.length < 2 || t.length > 40){ toast("Naam 2 se 40 characters ka ho"); return; }
+  if(t.length < 2 || t.length > 40){ toast(T("Naam 2 se 40 characters ka ho")); return; }
   const {error} = await db.rpc("rename_group", {p_group_id: groupId, p_name: t});
   if(error){ toast("Failed: " + error.message); return; }
   groupName = t;
   document.getElementById("grpName").textContent = t;
   const ov = document.getElementById("grpMemOv"); if(ov) ov.remove();
   loadMyGroups();
-  toast("Group ka naam change ho gaya ✓");
+  toast(T("Group ka naam change ho gaya ✓"));
 }
 async function removeMember(gid, uid){
   if(!confirm(T("Is member ko group se remove kar dein?"))) return;
@@ -2420,7 +2515,7 @@ VIEWS.wallet = async function(){
       ? '<button class="btn" style="width:100%" onclick="startDeposit(\'cashmaal\')">'+T("Deposit via CashMaal")+'</button>'
       : '<div class="notice warn">'+T("⏳ CashMaal connect ho raha hai — tab tak Method 2 istemal karein.")+'</div>') +
     '<div class="section-title" style="font-size:16px;margin:18px 0 10px">📸 '+T("Method 2: Easypaisa (manual)")+'</div>' +
-    '<div class="notice warn"><b>Step 1:</b> <b>Rs <span id="d_amt_show">—</span></b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+') bhejein<br><b>Step 2:</b> Screenshot lagayein — admin verify karke deposit balance me add karega.</div>' +
+    '<div class="notice warn"><b>Step 1:</b> <b>Rs <span id="d_amt_show">—</span></b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+')'+T(" bhejein")+'<br><b>Step 2:</b>'+T(" Screenshot lagayein — admin verify karke deposit balance me add karega.")+'</div>' +
     '<div class="field"><label>'+T("Payment screenshot *")+'</label><input id="d_proof" type="file" accept="image/*"></div>' +
     '<button class="btn ghost" style="width:100%" onclick="startDeposit(\'manual\')">'+T("Screenshot bhejein — manual deposit")+'</button></div>') +
     '<div class="section-title" style="font-size:18px">'+T("Deposit history")+'</div>' +
@@ -2432,7 +2527,7 @@ VIEWS.wallet = async function(){
       '<div class="sub">Minimum Rs '+MIN_WITHDRAWAL+''+T(". Paise aapke chosen method par admin approval ke baad bheje jayenge. <b>Withdrawal password zaroori hye.</b> <b>Earnings balance</b> se withdraw hoga (deposit balance se nahi).")+'</div><div id="w_msg"></div>' +
       '<div class="frow2"><div class="field"><label>Amount (Rs) *</label><input id="w_amount" type="number" min="'+MIN_WITHDRAWAL+'" required></div>' +
       '<div class="field"><label>Withdraw method *</label><select id="w_method" required>' + WITHDRAW_METHODS.map(function(m){ return '<option'+(m===(me.withdraw_method||"Easypaisa")?' selected':"")+'>'+m+'</option>'; }).join("") + '</select></div></div>' +
-      '<div class="frow2"><div class="field"><label>Account title (naam) *</label><input id="w_title" required placeholder="e.g. Ahsan Abid" value="'+esc(me.account_title||"")+'"></div>' +
+      '<div class="frow2"><div class="field"><label>'+T("Account title (naam) *")+'</label><input id="w_title" required placeholder="e.g. Ahsan Abid" value="'+esc(me.account_title||"")+'"></div>' +
       '<div class="field"><label>Account / mobile number *</label><input id="w_acct" required placeholder="'+T("e.g. 0300-1234567 ya IBAN")+'" value="'+esc(me.account_number||me.easypaisa_number||"")+'"></div></div>' +
       '<div class="field"><label>Withdrawal password *</label><input id="w_pass" type="password" required placeholder="••••••" autocomplete="current-password"></div>' +
       '<button class="btn" style="width:100%">Request withdrawal</button></form>'
@@ -2484,7 +2579,7 @@ async function submitWithdraw(ev){
   const pw = document.getElementById("w_pass").value;
   if(!amount || amount < MIN_WITHDRAWAL){ msg.innerHTML = '<div class="notice warn">Minimum withdrawal is Rs '+MIN_WITHDRAWAL+'.</div>'; return; }
   if(WITHDRAW_METHODS.indexOf(method) < 0){ msg.innerHTML = '<div class="notice warn">Please choose a withdraw method.</div>'; return; }
-  if(!acctTitle){ msg.innerHTML = '<div class="notice warn">Please enter the account title (naam).</div>'; return; }
+  if(!acctTitle){ msg.innerHTML = '<div class="notice warn">'+T("Please enter the account title (naam).")+'</div>'; return; }
   if(acct.length < 10){ msg.innerHTML = '<div class="notice warn">'+T("Account / mobile number ghalat hye.")+'</div>'; return; }
   if(!pw){ msg.innerHTML = '<div class="notice warn">Withdrawal password dalein.</div>'; return; }
   msg.innerHTML = "Processing…";
@@ -2736,7 +2831,7 @@ async function adminActivityView(s){
     html += '<div class="section-title" style="font-size:18px;margin:18px 0 10px">👁 Recent visits</div>' +
       (visits.length ? '<div style="overflow-x:auto"><table class="admin"><tr><th>Visitor</th><th>Device</th><th>When</th></tr>' +
       visits.map(function(a){
-        const who = a.name ? '<b>'+esc(a.name)+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(a.email || "")+'</span>' : '<span style="color:var(--muted)">👤 Guest (login nahi kiya)</span>';
+        const who = a.name ? '<b>'+esc(a.name)+'</b><br><span style="color:var(--muted);font-size:12.5px">'+esc(a.email || "")+'</span>' : '<span style="color:var(--muted)">'+T("👤 Guest (login nahi kiya)")+'</span>';
         return '<tr><td>'+who+'</td><td>'+shortUA(a.user_agent)+'</td><td style="white-space:nowrap">'+fmtDateTime(a.created_at)+'</td></tr>';
       }).join("") + '</table></div>' : '<div class="empty">No visits logged yet.</div>');
     // --- sales table ---
@@ -2913,7 +3008,7 @@ async function adminChatView(s){
   try{
     const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at,edited_at").order("created_at",{ascending:false}).limit(100);
     if(error) throw error;
-    app.innerHTML = adminHead(s, "Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.") +
+    app.innerHTML = adminHead(s, T("Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.")) +
       adminTabs("chat") +
       '<div class="chatbox" style="height:auto;max-height:60vh">' +
       ((msgs && msgs.length) ? msgs.map(function(m){
@@ -3361,6 +3456,7 @@ function showInstallBanner(){
 (function(){ runSplash(); })();
 function hideSplash(){ const s = document.getElementById("splash"); if(!s || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(function(){ s.remove(); }, 700); }
 paintLangToggle();
+paintStaticI18n();
 applyTheme();
 updateUserBox();
 subscribeWallet();
