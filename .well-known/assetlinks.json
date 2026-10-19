@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.pronotes.twa",
+    "sha256_cert_fingerprints": ["98:53:80:37:FB:EE:4C:C3:E2:E5:B6:61:DD:58:EA:FC:53:C6:CE:0F:50:D9:6E:BE:40:06:F1:64:0C:EE:C8:2D"]
+  }
+}]
