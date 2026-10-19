@@ -1,6 +1,6 @@
 {
  "background_color": "#0d0d12",
- "description": "Times University Multan ka apna notes marketplace. Buy & sell PDF notes and photo galleries.",
+ "description": "Pro Notes — apna notes marketplace. Buy & sell PDF notes and photo galleries.",
  "display": "standalone",
  "icons": [
   {
@@ -15,10 +15,10 @@
    "type": "image/png"
   }
  ],
- "name": "TUM Notes Hub \u2014 Buy & Sell Study Notes",
+ "name": "Pro Notes — Buy & Sell Study Notes",
  "orientation": "portrait",
  "scope": "/",
- "short_name": "TUM Notes",
+ "short_name": "Pro Notes",
  "start_url": "/",
  "theme_color": "#0d0d12"
 }
