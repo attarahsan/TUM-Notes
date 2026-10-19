@@ -454,6 +454,15 @@ const ADMIN_COMMISSION = 0.30;
 const COMMISSION_RATES = {free: 0.30, pro: 0.23, business: 0.15}; // admin ka cut — baqi seller ka
 function commissionRate(plan){ return COMMISSION_RATES[plan] || 0.30; }
 
+/* ================= APP DETECTION (hide deposits in native app) ================= */
+let IS_APP = false;
+try{
+  const qp = new URLSearchParams(window.location.search);
+  if(qp.get("app") === "1"){ localStorage.setItem("pronotes_app", "1"); }
+  IS_APP = localStorage.getItem("pronotes_app") === "1";
+}catch(e){}
+function isApp(){ return IS_APP; }
+
 /* ================= LANGUAGE (English / Roman Urdu) ================= */
 let APP_LANG = "ur"; // 'ur' = Roman Urdu (default), 'en' = English
 try{ APP_LANG = localStorage.getItem("tum_lang") || "ur"; }catch(e){ APP_LANG = "ur"; }
@@ -1222,14 +1231,14 @@ function showUnlockForm(){
   }
   const depBal = Number(u.deposit_balance||0), price = Number(n.price)||0;
   const canInstant = price > 0 && depBal >= price;
-  const depositCard =
+  const depositCard = (isApp() && !canInstant) ? "" :
     '<div class="fcard" style="border:2px solid var(--brand);margin-bottom:16px"><h2>⚡ '+T("Method 1: Deposit balance")+'</h2>' +
     '<div class="sub">'+T("Available")+': <b>Rs '+depBal.toLocaleString()+'</b> · '+T("Price")+': <b>Rs '+price.toLocaleString()+'</b></div>' +
     (canInstant
       ? '<div class="notice ok" style="margin:10px 0">'+T("Foran unlock — na screenshot, na admin approval.")+'</div>' +
         '<button class="btn" style="width:100%" onclick="buyWithBalance()">'+T("Buy now — Rs ")+price.toLocaleString()+'</button><div id="u_msg2" style="margin-top:10px"></div>'
       : '<div class="notice warn" style="margin:10px 0">'+T("Balance kam hai.")+'</div>' +
-        '<button class="btn" style="width:100%" onclick="go(\'wallet\')">'+T("Deposit karein")+'</button>') +
+        (isApp() ? "" : '<button class="btn" style="width:100%" onclick="go(\'wallet\')">'+T("Deposit karein")+'</button>')) +
     '</div>';
   const manualCard =
     '<div class="fcard" style="margin-bottom:16px"><h2>📸 '+T("Method 2: Easypaisa payment")+'</h2>' +
@@ -1396,9 +1405,11 @@ let pmPartnerUid = null, pmPartnerName = "";
 function chatMsgHtml(m, me){
   const mine = m.sender_id === me.uid;
   const nm = esc(m.sender_name || "User");
+  const editBtn = (mine && m.text) ? ' <button type="button" class="linklike" onclick="startMsgEdit(' + m.id + ',\'chat\')" title="' + T("Edit message") + '">✏️</button>' : "";
+  const editedTag = m.edited_at ? ' <span style="font-size:11px;color:var(--muted)">' + T("(edited)") + '</span>' : "";
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
     '<div class="who' + (mine ? "" : " clickable") + '"' + (mine ? "" : ' onclick="openPrivateChat(\'' + m.sender_id + '\',\'' + nm.replace(/'/g, "\\'") + '\')" title="Private chat"') + '>' + nm + (mine ? " (aap)" : "") + '</div>' +
-    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + '<div class="ts">' + fmtDateTime(m.created_at) + editedTag + editBtn + '</div></div>';
 }
 
 VIEWS.chat = async function(arg){
@@ -1612,7 +1623,7 @@ function showChatTab(which){
 async function loadGroupChat(u){
   const box = document.getElementById("chatBox"); if(!box) return;
   try{
-    const {data, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at").order("created_at",{ascending:false}).limit(60);
+    const {data, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at,edited_at").order("created_at",{ascending:false}).limit(60);
     if(error) throw error;
     const msgs = (data || []).reverse();
     box.innerHTML = msgs.length ? msgs.map(function(m){ return chatMsgHtml(m, u); }).join("") : '<div class="empty">'+T("Abhi koi message nahi — pehla message aap bhejein! \uD83D\uDC4B")+'</div>';
@@ -1680,8 +1691,10 @@ async function loadConversations(){
 
 function pmMsgHtml(m, me){
   const mine = m.sender_uid === me.uid;
+  const editBtn = (mine && m.text) ? ' <button type="button" class="linklike" onclick="startMsgEdit(' + m.id + ',\'pm\')" title="' + T("Edit message") + '">✏️</button>' : "";
+  const editedTag = m.edited_at ? ' <span style="font-size:11px;color:var(--muted)">' + T("(edited)") + '</span>' : "";
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
-    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + noteCardSlot(m.note_id) + '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+    '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + noteCardSlot(m.note_id) + '<div class="ts">' + fmtDateTime(m.created_at) + editedTag + editBtn + '</div></div>';
 }
 
 async function openPrivateChat(uid, name){
@@ -1702,7 +1715,7 @@ async function reloadPmThread(){
   const box = document.getElementById("pmBox"); if(!box) return;
   try{
     const {data, error} = await db.from("private_messages")
-      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at")
+      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at,edited_at")
       .or("and(sender_uid.eq." + u.uid + ",receiver_uid.eq." + uid + "),and(sender_uid.eq." + uid + ",receiver_uid.eq." + u.uid + ")")
       .order("created_at", {ascending:true}).limit(200);
     if(error) throw error;
@@ -1761,6 +1774,42 @@ function subscribePm(u){
     }).subscribe();
 }
 
+/* ================= CHAT: edit own messages ================= */
+function startMsgEdit(mid, type){
+  const el = document.querySelector('.chatmsg[data-mid="' + mid + '"] .txt');
+  if(!el || el.querySelector("textarea")) return;
+  const orig = el.textContent;
+  el.dataset.orig = orig;
+  el.innerHTML = '<textarea id="editBox' + mid + '" rows="2" style="width:100%;box-sizing:border-box">' + esc(orig) + '</textarea>' +
+    '<div style="margin-top:6px"><button type="button" class="btn" onclick="saveMsgEdit(' + mid + ',\'' + type + '\')">' + T("Save") + '</button> ' +
+    '<button type="button" class="btn ghost" onclick="cancelMsgEdit(' + mid + ')">' + T("Cancel") + '</button></div>';
+  const box = document.getElementById("editBox" + mid);
+  if(box){ box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+}
+function cancelMsgEdit(mid){
+  const el = document.querySelector('.chatmsg[data-mid="' + mid + '"] .txt');
+  if(el && el.dataset.orig !== undefined) el.innerHTML = esc(el.dataset.orig);
+}
+async function saveMsgEdit(mid, type){
+  const box = document.getElementById("editBox" + mid);
+  if(!box) return;
+  const txt = box.value.trim();
+  if(!txt){ toast(T("Message khaali nahi ho sakta")); return; }
+  if(txt.length > 500){ toast(T("Message bohat lamba hai (max 500)")); return; }
+  const rpc = type === "chat" ? "edit_chat_message" : type === "pm" ? "edit_private_message" : "edit_group_message";
+  box.disabled = true;
+  try{
+    const {error} = await db.rpc(rpc, {p_id: mid, p_text: txt});
+    if(error) throw error;
+    toast(T("Message edit ho gaya ✅"));
+  }catch(e){ toast(T("Edit failed: ") + e.message); box.disabled = false; return; }
+  try{
+    if(type === "pm") await reloadPmThread();
+    else if(type === "grp") await reloadGroupThread();
+    else { const u = currentUser(); if(u) await loadGroupChat(u); }
+  }catch(e){}
+}
+
 /* ================= CHAT v3: voice, note-share, groups ================= */
 async function toggleVoiceRecording(sendType){
   if(voiceRec && voiceRec.state !== "inactive"){ stopVoiceRecording(false); return; }
@@ -1774,6 +1823,7 @@ async function toggleVoiceRecording(sendType){
     voiceRec.start();
     const btn = voiceBtnFor(sendType);
     if(btn){ btn.dataset.orig = btn.innerHTML; btn.innerHTML = "🔴 0s"; btn.classList.add("rec"); }
+    showVoiceCancel(true);
     voiceTimer = setInterval(function(){
       voiceSecs++;
       const b = voiceBtnFor(sendType);
@@ -1786,8 +1836,24 @@ async function toggleVoiceRecording(sendType){
 function voiceBtnFor(sendType){
   return document.getElementById(sendType === "group" ? "voiceBtnGroup" : sendType === "pm" ? "voiceBtnPm" : "voiceBtnGrp");
 }
+function showVoiceCancel(show){
+  let c = document.getElementById("voiceCancelBtn");
+  if(show){
+    if(c) return;
+    const btn = voiceBtnFor(voiceSendType);
+    if(!btn || !btn.parentNode) return;
+    c = document.createElement("button");
+    c.type = "button"; c.id = "voiceCancelBtn";
+    c.className = "btn ghost";
+    c.title = T("Cancel recording — bhejna nahi");
+    c.innerHTML = "❌";
+    c.onclick = function(){ stopVoiceRecording(true); toast(T("Recording cancel ho gayi")); };
+    btn.parentNode.insertBefore(c, btn.nextSibling);
+  }else if(c){ c.remove(); }
+}
 function stopVoiceRecording(cancel){
   if(voiceTimer){ clearInterval(voiceTimer); voiceTimer = null; }
+  showVoiceCancel(false);
   const btn = voiceBtnFor(voiceSendType);
   if(btn){ btn.innerHTML = btn.dataset.orig || "🎤"; btn.classList.remove("rec"); }
   if(!voiceRec) return;
@@ -1796,6 +1862,7 @@ function stopVoiceRecording(cancel){
 }
 async function finishVoiceRecording(){
   const rec = voiceRec; voiceRec = null;
+  showVoiceCancel(false);
   const btn = voiceBtnFor(voiceSendType);
   if(btn){ btn.innerHTML = btn.dataset.orig || "🎤"; btn.classList.remove("rec"); }
   const type = voiceSendType; voiceSendType = null;
@@ -1902,10 +1969,12 @@ async function attachNoteToChat(noteId, sendType){
 /* ---------- groups ---------- */
 function grpMsgHtml(m, me){
   const mine = m.sender_uid === me.uid;
+  const editBtn = (mine && m.text) ? ' <button type="button" class="linklike" onclick="startMsgEdit(' + m.id + ',\'grp\')" title="' + T("Edit message") + '">✏️</button>' : "";
+  const editedTag = m.edited_at ? ' <span style="font-size:11px;color:var(--muted)">' + T("(edited)") + '</span>' : "";
   return '<div class="chatmsg' + (mine ? " mine" : "") + '" data-mid="' + m.id + '">' +
     (mine ? "" : '<div class="who">' + esc(m.sender_name || "User") + '</div>') +
     '<div class="txt">' + esc(m.text) + '</div>' + voiceHtml(m.voice_url) + noteCardSlot(m.note_id) +
-    '<div class="ts">' + fmtDateTime(m.created_at) + '</div></div>';
+    '<div class="ts">' + fmtDateTime(m.created_at) + editedTag + editBtn + '</div></div>';
 }
 async function loadMyGroups(){
   const u = currentUser(); if(!u) return;
@@ -1972,7 +2041,7 @@ async function reloadGroupThread(){
   const box = document.getElementById("grpBox"); if(!box) return;
   try{
     const {data, error} = await db.from("group_messages")
-      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at")
+      .select("id,sender_uid,sender_name,text,voice_url,note_id,created_at,edited_at")
       .eq("group_id", groupId).order("created_at", {ascending:true}).limit(200);
     if(error) throw error;
     const msgs = data || [];
@@ -2341,6 +2410,7 @@ VIEWS.wallet = async function(){
         '<button class="btn" onclick="copyReferral()">📋 Copy referral link</button>' +
         '<div id="refStats" style="margin-top:8px"><div class="loading">'+T("Team stats load ho rahi hain…")+'</div></div>'
       : '<div class="notice warn">'+T("Referral code abhi tayyar nahi — page reload karein.")+'</div>') + '</div>' +
+    (isApp() ? "" :
     '<div class="fcard" style="margin-bottom:24px;border:2px solid var(--brand)"><h2>💰 '+T("Deposit")+'</h2>' +
     '<div class="sub">'+T("Ye balance <b>sirf notes khareedne</b> ke liye istemal hoga (withdraw nahi ho sakta).")+'</div><div id="d_msg"></div>' +
     '<div class="frow2"><div class="field"><label>'+T("Amount (Rs) *")+'</label><input id="d_amount" type="number" min="50" placeholder="e.g. 500"></div></div>' +
@@ -2352,7 +2422,7 @@ VIEWS.wallet = async function(){
     '<div class="section-title" style="font-size:16px;margin:18px 0 10px">📸 '+T("Method 2: Easypaisa (manual)")+'</div>' +
     '<div class="notice warn"><b>Step 1:</b> <b>Rs <span id="d_amt_show">—</span></b> via <b>'+PAYMENT_METHOD+'</b> to <b>'+PAYMENT_NUMBER+'</b> ('+PAYMENT_TITLE+') bhejein<br><b>Step 2:</b> Screenshot lagayein — admin verify karke deposit balance me add karega.</div>' +
     '<div class="field"><label>'+T("Payment screenshot *")+'</label><input id="d_proof" type="file" accept="image/*"></div>' +
-    '<button class="btn ghost" style="width:100%" onclick="startDeposit(\'manual\')">'+T("Screenshot bhejein — manual deposit")+'</button></div>' +
+    '<button class="btn ghost" style="width:100%" onclick="startDeposit(\'manual\')">'+T("Screenshot bhejein — manual deposit")+'</button></div>') +
     '<div class="section-title" style="font-size:18px">'+T("Deposit history")+'</div>' +
     ((deps && deps.length) ? '<div style="overflow-x:auto;margin-bottom:24px"><table class="admin"><tr><th>'+T("Amount")+'</th><th>'+T("Method")+'</th><th>'+T("Date")+'</th><th>'+T("Status")+'</th></tr>' +
       deps.map(function(d){ return '<tr><td><b>Rs '+Number(d.amount||0).toLocaleString()+'</b></td><td>'+(d.method==="manual"?"📸 Manual":"⚡ CashMaal")+'</td><td style="white-space:nowrap">'+fdt(d.created_at)+'</td><td><span class="badge '+(d.status==="pending"?"pending":(d.status==="failed"||d.status==="rejected")?"rejected":"")+'">'+esc(d.status||"")+'</span></td></tr>'; }).join("") + '</table></div>'
@@ -2841,7 +2911,7 @@ async function adminDecideDeposit(deposit_id, action){
 /* ---- admin: group chat moderation (real names, can delete) ---- */
 async function adminChatView(s){
   try{
-    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at").order("created_at",{ascending:false}).limit(100);
+    const {data: msgs, error} = await db.from("chat_messages").select("id,sender_id,sender_name,text,voice_url,created_at,edited_at").order("created_at",{ascending:false}).limit(100);
     if(error) throw error;
     app.innerHTML = adminHead(s, "Group chat ki moderation — galat message <b>delete</b> karein. Sab apne asal naam se nazar aayenge.") +
       adminTabs("chat") +
